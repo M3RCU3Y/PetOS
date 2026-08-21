@@ -1,6 +1,6 @@
 [package]
 name = "petos"
-version = "0.2.0-alpha.0"
+version = "0.2.0"
 description = "A living-creature desktop simulation"
 authors = ["PetOS contributors"]
 edition = "2021"
