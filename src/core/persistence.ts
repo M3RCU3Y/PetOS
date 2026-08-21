@@ -31,37 +31,50 @@ function migrateSettings(raw: Partial<PetOSSettings> | undefined): PetOSSettings
 }
 
 export class BrowserPersistence {
-  constructor(private readonly key = "petos:state:v1") {}
+  private saves = 0;
+
+  constructor(private readonly key = "petos:state:v1", private readonly backupKey = "petos:state:v1:backup") {}
 
   load(): PersistedAppState | null {
-    try {
-      const raw = localStorage.getItem(this.key);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as LegacyState;
-      if (!parsed || typeof parsed !== "object") return null;
-      // Future migrations go here when version increments
-      if ((parsed.version ?? 0) > CURRENT_VERSION) return null;
-      return {
-        version: CURRENT_VERSION,
-        pets: Array.isArray(parsed.pets) ? parsed.pets as PetRecord[] : [],
-        objects: Array.isArray(parsed.objects) ? parsed.objects as WorldObject[] : [],
-        settings: migrateSettings(parsed.settings)
-      };
-    } catch {
-      return null;
+    // Primary first, then the most recent known-good backup if the primary is corrupt.
+    for (const storageKey of [this.key, this.backupKey]) {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as LegacyState;
+        if (!parsed || typeof parsed !== "object") continue;
+        if ((parsed.version ?? 0) > CURRENT_VERSION) return null;
+        const state: PersistedAppState = {
+          version: CURRENT_VERSION,
+          pets: Array.isArray(parsed.pets) ? parsed.pets as PetRecord[] : [],
+          objects: Array.isArray(parsed.objects) ? parsed.objects as WorldObject[] : [],
+          settings: migrateSettings(parsed.settings)
+        };
+        if (storageKey === this.backupKey) console.warn("PetOS: primary state was unreadable — restored from backup");
+        return state;
+      } catch { /* try next source */ }
     }
+    return null;
   }
 
   save(state: PersistedAppState): void {
+    const json = JSON.stringify({ ...state, version: CURRENT_VERSION });
     try {
-      localStorage.setItem(this.key, JSON.stringify({ ...state, version: CURRENT_VERSION }));
+      localStorage.setItem(this.key, json);
+      this.saves++;
+      if (this.saves % 5 === 0) {
+        try { localStorage.setItem(this.backupKey, json); } catch { /* backup is best-effort */ }
+      }
     } catch {
       /* persistence is best-effort */
     }
   }
 
   clear(): void {
-    try { localStorage.removeItem(this.key); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem(this.key);
+      localStorage.removeItem(this.backupKey);
+    } catch { /* ignore */ }
   }
 
   export(): string {

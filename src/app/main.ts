@@ -101,7 +101,9 @@ const ui=new SettingsUI({
   onCreateCustomPet(config){const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const pet=new Pet({id:crypto.randomUUID(),name:config.name,species:config.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:config.personality});sim.addPet(pet,config.appearance);persist();}
 },settings,persistence);
 
-document.querySelector("#photo-btn")?.addEventListener("click",()=>photography.download());
+document.querySelector("#photo-btn")?.addEventListener("click",()=>{photography.download();photography.saveToGallery();ui.setGallery(PhotographyMode.loadGallery());});
+document.querySelector("#gallery-snap")?.addEventListener("click",()=>{photography.saveToGallery();ui.setGallery(PhotographyMode.loadGallery());});
+ui.setGallery(PhotographyMode.loadGallery());
 void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);void bridge.onSettingsRequested(()=>ui.open());
 
 function addPet(pack:PetPack,name:string):void{const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const init={id:crypto.randomUUID(),name,species:pack.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,...(pack.personality?{personality:pack.personality}:{})};const pet=new Pet(init);sim.addPet(pet,pack.appearance);persist();}

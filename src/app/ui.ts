@@ -1,10 +1,12 @@
-import { extractPalette } from "./photo.js";
+import { extractPalette, extractMarkings } from "./photo.js";
 import type { DiaryEntry } from "../core/diary.js";
 import { renderSocialGraph, type SocialEdge } from "./social.js";
+import { renderPetPreview } from "./renderer.js";
+import { PhotographyMode } from "./photography.js";
 import { BrowserPersistence } from "../core/persistence.js";
 import { BUILTIN_PACKS, validatePackDetailed, type PetPack } from "../core/packs.js";
 import { SPECIES } from "../core/species.js";
-import type { PetOSSettings, Species } from "../core/types.js";
+import type { MarkingPattern, PetOSSettings, Species } from "../core/types.js";
 
 const SPECIES_DEFAULTS: Record<string, any> = Object.fromEntries(Object.entries(SPECIES).map(([k,v])=>[k,v.defaultPersonality]));
 
@@ -27,7 +29,7 @@ export interface UIActions {
   onExportState():void;
   onImportState(json:string):boolean;
   onReset():void;
-  onCreateCustomPet(config:{species:Species;name:string;appearance:{coat:string;accent:string;eye:string;scale:number};personality:Record<string,number>}):void;
+  onCreateCustomPet(config:{species:Species;name:string;appearance:{coat:string;accent:string;eye:string;scale:number;markings?:MarkingPattern};personality:Record<string,number>}):void;
 }
 
 export interface CreatorState {
@@ -36,6 +38,7 @@ export interface CreatorState {
   coat: string;
   accent: string;
   eye: string;
+  markings?: MarkingPattern;
   personality: Record<string, number>;
 }
 
@@ -58,15 +61,31 @@ export class SettingsUI {
   private packSelect:HTMLSelectElement;
   private lifeLog:HTMLElement;
   private customPacks:PetPack[]=[];
+  private packHashes=new Map<string,string>();
   private persistence:BrowserPersistence|null=null;
   private relationshipsData:Record<string,Record<string,number>>={};
   private creatorState:CreatorState = { species:"cat", name:"", coat:"#d98742", accent:"#f2c287", eye:"#d7ef76", personality:{} };
+  private previewTimer=0;
   constructor(private readonly actions:UIActions,settings:PetOSSettings,persistence?:BrowserPersistence){
     this.persistence=persistence??null;
     this.panel=document.querySelector("#settings-panel")!;this.backdrop=document.querySelector("#settings-backdrop")!;this.petList=document.querySelector("#pet-list")!;this.packSelect=document.querySelector("#pack-select")!;this.lifeLog=document.querySelector("#life-log")!;
     this.renderPacks();
     this.bind(settings);
     this.bindCreator();
+    this.startPreview();
+  }
+
+  private startPreview():void{
+    const canvas=document.querySelector<HTMLCanvasElement>("#creator-preview");
+    if(!canvas)return;
+    const behaviors=["idle","walk","groom","sit"];
+    this.previewTimer=window.setInterval(()=>{
+      const panel=this.panel.classList.contains("open");
+      if(!panel)return;
+      const behavior=behaviors[Math.floor(performance.now()/2600)%behaviors.length]!;
+      renderPetPreview(canvas,this.creatorState.species,{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1,markings:this.creatorState.markings as any},behavior,performance.now());
+    },140);
+    renderPetPreview(canvas,this.creatorState.species,{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1},"idle",performance.now());
   }
   open():void{this.panel.classList.add("open");this.backdrop.classList.add("open");}
   close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");}
@@ -118,7 +137,19 @@ export class SettingsUI {
       if(this.actions.onImportState(json))location.reload();
       importFile.value="";
     });
-    const file=document.querySelector<HTMLInputElement>("#pack-file")!;file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;try{const result=validatePackDetailed(JSON.parse(await f.text()));if(!result.pack)throw new Error(result.errors.join("; "));this.customPacks.push(result.pack);this.renderPacks();this.actions.onImportPack(result.pack);}catch{alert("That file is not a valid PetOS pet pack JSON.");}finally{file.value="";}});
+    const file=document.querySelector<HTMLInputElement>("#pack-file")!;file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;try{const text=await f.text();const result=validatePackDetailed(JSON.parse(text));if(!result.pack)throw new Error(result.errors.join("; "));this.customPacks.push(result.pack);this.packHashes.set(result.pack.id,(await this.hashText(text)).slice(0,12));this.renderPacks();this.actions.onImportPack(result.pack);}catch{alert("That file is not a valid PetOS pet pack JSON.");}finally{file.value="";}});
+  }
+  setGallery(urls:string[]):void{
+    const el=document.querySelector("#photo-gallery");
+    if(!el)return;
+    if(!urls.length){el.innerHTML="<p>No photos yet — press 📷 Photo below to take one.</p>";return;}
+    el.innerHTML="";
+    urls.forEach((url,i)=>{
+      const cell=document.createElement("div");cell.className="photo-cell";
+      const img=document.createElement("img");img.src=url;img.alt=`PetOS snapshot ${i+1}`;img.title="Click to download";img.addEventListener("click",()=>{const a=document.createElement("a");a.href=url;a.download=`petos-photo-${i}.jpg`;a.click();});
+      const del=document.createElement("button");del.textContent="×";del.title="Remove";del.addEventListener("click",()=>{PhotographyMode.removeFromGallery(i);this.setGallery(PhotographyMode.loadGallery());});
+      cell.append(img,del);el.append(cell);
+    });
   }
   private updateSocialGraph(pets:{id:string;name:string;species:Species;behavior:string}[]):void{
     const container=document.querySelector("#social-graph");
@@ -160,11 +191,16 @@ export class SettingsUI {
       if(!f)return;
       try{
         const palette=await extractPalette(f);
+        const markings=await extractMarkings(f);
         this.creatorState.coat=palette.coat;
         this.creatorState.accent=palette.accent;
         this.creatorState.eye=palette.eye;
-        const coat=document.querySelector<HTMLInputElement>("#creator-coat")!,accent=document.querySelector<HTMLInputElement>("#creator-accent")!,eye=document.querySelector<HTMLInputElement>("#creator-eye")!;
-        coat.value=palette.coat;accent.value=palette.accent;eye.value=palette.eye;
+        this.creatorState.markings=markings.pattern;
+        document.querySelector<HTMLInputElement>("#creator-coat")!.value=palette.coat;
+        document.querySelector<HTMLInputElement>("#creator-accent")!.value=palette.accent;
+        document.querySelector<HTMLInputElement>("#creator-eye")!.value=palette.eye;
+        const note=document.querySelector("#creator-markings-note");
+        if(note)note.textContent=`Photo analysis: ${markings.pattern} coat pattern (confidence ${(markings.confidence*100).toFixed(0)}%) — markings are drawn on the procedural pet until sprite art exists.`;
       }catch{alert("Could not read that image.");}finally{photoInput.value="";}
     });
     document.querySelector("#creator-create")!.addEventListener("click",()=>{
@@ -172,13 +208,31 @@ export class SettingsUI {
       const name=nameInput.value.trim()||"Buddy";
       this.actions.onCreateCustomPet({
         species:this.creatorState.species,name,
-        appearance:{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1},
+        appearance:{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1,...(this.creatorState.markings?{markings:this.creatorState.markings}:{})},
         personality:this.creatorState.personality
       });
       nameInput.value="";
     });
   }
+
+  private async hashText(text:string):Promise<string>{
+    try{
+      const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
+      return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    }catch{return "unsigned";}
+  }
   private allPacks():PetPack[]{return[...BUILTIN_PACKS,...this.customPacks];}
-  private renderPacks():void{const selected=this.packSelect?.value;this.packSelect.innerHTML="";for(const p of this.allPacks()){const option=document.createElement("option");option.value=p.id;option.textContent=`${p.name} · ${p.species}`;this.packSelect.append(option);}if(selected&&this.allPacks().some(p=>p.id===selected))this.packSelect.value=selected;}
+  private renderPacks():void{const selected=this.packSelect?.value;this.packSelect.innerHTML="";for(const p of this.allPacks()){const option=document.createElement("option");option.value=p.id;option.textContent=`${p.name} · ${p.species}`;this.packSelect.append(option);}if(selected&&this.allPacks().some(p=>p.id===selected))this.packSelect.value=selected;
+    const listEl=document.querySelector("#pack-list");
+    if(listEl){
+      listEl.innerHTML="";
+      const rows=[...BUILTIN_PACKS.map(p=>({p,hash:"built-in",author:p.author})),...this.customPacks.map(p=>({p,hash:this.packHashes.get(p.id)??"unsigned",author:p.author}))];
+      for(const {p,hash,author} of rows){
+        const row=document.createElement("div");row.className="pack-row";
+        row.innerHTML=`<span>${escapeHtml(p.name)} <small style="opacity:.55">v${escapeHtml(p.version)} · ${escapeHtml(author)}</small></span><code title="SHA-256 fingerprint (first 12 hex)">${escapeHtml(hash)}</code>`;
+        listEl.append(row);
+      }
+    }
+  }
 }
 function escapeHtml(s:string):string{return s.replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]!));}
