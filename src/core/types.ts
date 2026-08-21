@@ -1,34 +1,38 @@
-export type SpeciesId = "cat" | "dog" | "rabbit" | "bird";
+export type Species = "cat" | "dog" | "rabbit" | "bird";
 
-export type BehaviorId =
-  | "sleep"
-  | "rest"
-  | "groom"
-  | "wander"
-  | "investigate"
-  | "chase_cursor"
-  | "seek_user"
-  | "perch"
-  | "observe";
+export type Behavior =
+  | "idle" | "walk" | "run" | "sit" | "sleep" | "groom" | "stretch"
+  | "investigate" | "chase_cursor" | "pounce" | "seek_user" | "zoomies"
+  | "jump" | "climb" | "perch" | "hide" | "eat" | "drink"
+  | "play_toy" | "carry_toy" | "follow_pet" | "play_pet" | "greet_pet";
 
-export interface PetTraits {
+export type UserActivity = "idle" | "active" | "typing" | "media" | "gaming" | "fullscreen" | "presentation";
+export type SurfaceKind = "taskbar" | "window" | "monitor_floor" | "furniture";
+export type ObjectKind = "bed" | "ball" | "box" | "bowl" | "scratcher" | "toy";
+
+export interface Vec2 { x: number; y: number; }
+export interface Rect { x: number; y: number; width: number; height: number; }
+
+export interface Personality {
   energy: number;
   curiosity: number;
+  boldness: number;
   sociability: number;
   affection: number;
-  boldness: number;
   patience: number;
   playfulness: number;
+  independence: number;
   foodDrive: number;
 }
 
 export interface Drives {
   fatigue: number;
   hunger: number;
+  thirst: number;
   play: number;
   social: number;
   curiosity: number;
-  comfortDeficit: number;
+  comfort: number;
 }
 
 export interface Affect {
@@ -37,55 +41,160 @@ export interface Affect {
   stress: number;
 }
 
-export interface SurfaceObservation {
+export interface BodyState {
+  position: Vec2;
+  velocity: Vec2;
+  facing: -1 | 1;
+  grounded: boolean;
+  surfaceId: string | null;
+  target: Vec2 | null;
+  held: boolean;
+}
+
+export interface Surface {
   id: string;
-  kind: "taskbar" | "window" | "furniture" | "desktop";
-  quality: number;
-  elevation: number;
-  moving: boolean;
+  kind: SurfaceKind;
+  rect: Rect;
+  walkY: number;
+  title?: string;
+  app?: string;
+  comfort?: number;
+  moving?: boolean;
+  velocity?: Vec2;
 }
 
-export interface WorldObservation {
+export interface WorldObject {
+  id: string;
+  kind: ObjectKind;
+  position: Vec2;
+  radius: number;
+  comfort?: number;
+  ownerPetId?: string;
+}
+
+export interface NearbyPet {
+  id: string;
+  species: Species;
+  position: Vec2;
+  behavior: Behavior;
+  distance: number;
+  relationship: number;
+}
+
+export interface CursorState {
+  position: Vec2;
+  speed: number;
+  distanceToPet: number;
+  buttons: number;
+}
+
+export interface DesktopWindow {
+  id: string;
+  title: string;
+  app: string;
+  rect: Rect;
+  visible: boolean;
+  foreground: boolean;
+  minimized: boolean;
+}
+
+export interface MonitorInfo {
+  id: string;
+  rect: Rect;
+  workArea: Rect;
+  primary: boolean;
+  scaleFactor: number;
+}
+
+export interface WorldSnapshot {
   nowMs: number;
-  cursorSpeed: number;
-  cursorDistance: number;
-  userIdleSeconds: number;
-  userActivity: "idle" | "light" | "typing" | "gaming" | "fullscreen";
-  secondsSinceNewWindow: number | null;
-  currentSurface: SurfaceObservation;
-  nearbyPetCount: number;
-  recentPettingSecondsAgo: number | null;
+  dtMs: number;
+  userActivity: UserActivity;
+  cursor: CursorState;
+  surfaces: Surface[];
+  objects: WorldObject[];
+  nearbyPets: NearbyPet[];
+  windows: DesktopWindow[];
+  monitors: MonitorInfo[];
+  foregroundApp: string | null;
+  secondsSinceNewWindow: number;
+  currentSurface: Surface | null;
+  interactionMode: boolean;
 }
 
-export interface BehaviorScore {
-  behavior: BehaviorId;
+export interface DecisionScore {
+  behavior: Behavior;
   score: number;
-  reasons: string[];
+  reason: string;
+  targetId?: string;
+  targetPosition?: Vec2;
 }
 
 export interface Decision {
-  behavior: BehaviorId;
+  behavior: Behavior;
   score: number;
-  reasons: string[];
-  allScores: BehaviorScore[];
+  reason: string;
+  targetId?: string;
+  targetPosition?: Vec2;
+  allScores: DecisionScore[];
 }
 
 export interface EpisodicMemory {
+  id: string;
   atMs: number;
-  type: "interaction" | "behavior" | "environment";
-  surfaceId: string;
-  behavior?: BehaviorId;
+  kind: "petting" | "play" | "sleep" | "surface" | "social" | "fright" | "discovery";
+  subjectId?: string;
+  surfaceId?: string;
+  app?: string;
   valence: number;
-  description: string;
+  salience: number;
+  note: string;
 }
 
 export interface PetState {
   id: string;
   name: string;
-  species: SpeciesId;
-  traits: PetTraits;
+  species: Species;
+  personality: Personality;
   drives: Drives;
   affect: Affect;
-  behavior: BehaviorId;
+  body: BodyState;
+  behavior: Behavior;
   behaviorSinceMs: number;
+  behaviorTargetId: string | null;
+  ageSeconds: number;
+  bond: number;
+  lastInteractionMs: number;
+  favoriteSurfaceId: string | null;
+}
+
+export interface PetSave {
+  version: 1;
+  state: PetState;
+  memories: EpisodicMemory[];
+  surfacePreferences: Record<string, number>;
+  appPreferences: Record<string, number>;
+  relationships: Record<string, number>;
+}
+
+export interface PetAppearance {
+  coat: string;
+  accent: string;
+  eye: string;
+  scale: number;
+}
+
+export interface PetRecord {
+  save: PetSave;
+  appearance: PetAppearance;
+}
+
+export interface PetOSSettings {
+  enabled: boolean;
+  interactionMode: boolean;
+  debug: boolean;
+  reducedMotion: boolean;
+  privacyLevel: 0 | 1 | 2 | 3;
+  maxFps: 30 | 60;
+  sound: boolean;
 }

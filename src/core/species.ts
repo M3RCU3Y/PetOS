@@ -1,43 +1,39 @@
-import type { BehaviorId, PetTraits, SpeciesId } from "./types.js";
+import type { Behavior, Personality, Species } from "./types.js";
 
 export interface SpeciesProfile {
-  id: SpeciesId;
-  behaviorBias: Partial<Record<BehaviorId, number>>;
-  driveRates: {
-    fatigue: number;
-    hunger: number;
-    play: number;
-    social: number;
-    curiosity: number;
-  };
+  species: Species;
+  defaultPersonality: Personality;
+  movement: { walkSpeed: number; runSpeed: number; jumpSpeed: number; gravity: number; bodyWidth: number; bodyHeight: number; };
+  behaviorBias: Partial<Record<Behavior, number>>;
 }
 
-export const SPECIES: Record<SpeciesId, SpeciesProfile> = {
-  cat: {
-    id: "cat",
-    behaviorBias: { sleep: 0.12, groom: 0.16, perch: 0.22, chase_cursor: 0.12, observe: 0.1 },
-    driveRates: { fatigue: 0.00000007, hunger: 0.000000035, play: 0.00000035, social: 0.00000016, curiosity: 0.00000042 }
-  },
-  dog: {
-    id: "dog",
-    behaviorBias: { seek_user: 0.24, wander: 0.08, chase_cursor: 0.08 },
-    driveRates: { fatigue: 0.000000075, hunger: 0.00000004, play: 0.00000038, social: 0.00000024, curiosity: 0.00000034 }
-  },
-  rabbit: {
-    id: "rabbit",
-    behaviorBias: { rest: 0.1, investigate: 0.08, observe: 0.16 },
-    driveRates: { fatigue: 0.000000065, hunger: 0.000000045, play: 0.0000003, social: 0.00000018, curiosity: 0.00000038 }
-  },
-  bird: {
-    id: "bird",
-    behaviorBias: { perch: 0.28, investigate: 0.14, observe: 0.14 },
-    driveRates: { fatigue: 0.00000006, hunger: 0.000000038, play: 0.00000036, social: 0.0000002, curiosity: 0.00000048 }
-  }
+const cat: SpeciesProfile = {
+  species: "cat",
+  defaultPersonality: { energy:.55, curiosity:.82, boldness:.58, sociability:.45, affection:.62, patience:.45, playfulness:.72, independence:.76, foodDrive:.52 },
+  movement: { walkSpeed: 62, runSpeed: 170, jumpSpeed: 310, gravity: 900, bodyWidth: 54, bodyHeight: 44 },
+  behaviorBias: { groom:.22, sleep:.18, chase_cursor:.3, pounce:.22, climb:.25, perch:.28, investigate:.2, seek_user:.02 }
+};
+const dog: SpeciesProfile = {
+  species: "dog",
+  defaultPersonality: { energy:.7, curiosity:.65, boldness:.7, sociability:.88, affection:.9, patience:.5, playfulness:.86, independence:.28, foodDrive:.72 },
+  movement: { walkSpeed: 70, runSpeed: 190, jumpSpeed: 270, gravity: 950, bodyWidth: 64, bodyHeight: 48 },
+  behaviorBias: { seek_user:.3, follow_pet:.18, play_pet:.25, greet_pet:.25, carry_toy:.25, play_toy:.25, sleep:.05 }
+};
+const rabbit: SpeciesProfile = {
+  species: "rabbit",
+  defaultPersonality: { energy:.62, curiosity:.58, boldness:.33, sociability:.55, affection:.55, patience:.56, playfulness:.62, independence:.54, foodDrive:.66 },
+  movement: { walkSpeed: 78, runSpeed: 210, jumpSpeed: 360, gravity: 930, bodyWidth: 49, bodyHeight: 42 },
+  behaviorBias: { jump:.28, zoomies:.15, hide:.25, investigate:.12, sleep:.08 }
+};
+const bird: SpeciesProfile = {
+  species: "bird",
+  defaultPersonality: { energy:.76, curiosity:.78, boldness:.52, sociability:.66, affection:.54, patience:.35, playfulness:.68, independence:.64, foodDrive:.55 },
+  movement: { walkSpeed: 48, runSpeed: 120, jumpSpeed: 420, gravity: 580, bodyWidth: 38, bodyHeight: 34 },
+  behaviorBias: { perch:.38, investigate:.24, jump:.2, groom:.12, seek_user:.08 }
 };
 
-export const DEFAULT_TRAITS: Record<SpeciesId, PetTraits> = {
-  cat: { energy: 0.58, curiosity: 0.72, sociability: 0.46, affection: 0.62, boldness: 0.58, patience: 0.56, playfulness: 0.66, foodDrive: 0.48 },
-  dog: { energy: 0.7, curiosity: 0.65, sociability: 0.82, affection: 0.82, boldness: 0.66, patience: 0.54, playfulness: 0.8, foodDrive: 0.68 },
-  rabbit: { energy: 0.58, curiosity: 0.58, sociability: 0.52, affection: 0.52, boldness: 0.32, patience: 0.62, playfulness: 0.56, foodDrive: 0.62 },
-  bird: { energy: 0.72, curiosity: 0.78, sociability: 0.62, affection: 0.5, boldness: 0.52, patience: 0.42, playfulness: 0.68, foodDrive: 0.5 }
-};
+export const SPECIES: Record<Species, SpeciesProfile> = { cat, dog, rabbit, bird };
+
+export function personalityFor(species: Species, overrides: Partial<Personality> = {}): Personality {
+  return { ...SPECIES[species].defaultPersonality, ...overrides };
+}

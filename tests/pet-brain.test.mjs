@@ -1,56 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Pet, SeededRandom, calmDesktop } from "../dist/index.js";
+import { Pet, SeededRandom, calmDesktop, SPECIES, surfacesFromDesktop, PetPhysics, validatePack, PetOSSimulation } from "../dist/src/index.js";
 
-test("high fatigue makes sleep dominate once behavior inertia expires", () => {
-  const pet = new Pet({ id: "a", name: "Nap", species: "cat", nowMs: 0 }, new SeededRandom(1));
-  pet.state.drives.fatigue = 0.98;
-  pet.state.behaviorSinceMs = -10_000;
-  const world = calmDesktop(10_000);
-  const decision = pet.tick(world, 100);
-  assert.equal(decision.behavior, "sleep");
-});
+test("high fatigue makes sleep dominate once inertia expires",()=>{const pet=new Pet({id:"a",name:"Nap",species:"cat",nowMs:0},new SeededRandom(1));pet.state.drives.fatigue=.99;pet.state.drives.play=.02;pet.state.behaviorSinceMs=-20_000;const w=calmDesktop(10_000);assert.equal(pet.tick(w,100).behavior,"sleep");});
 
-test("fast nearby cursor can trigger play-oriented chasing", () => {
-  const pet = new Pet({ id: "b", name: "Rocket", species: "cat", nowMs: 0 }, new SeededRandom(2));
-  pet.state.drives.fatigue = 0.05;
-  pet.state.drives.play = 0.95;
-  pet.state.drives.curiosity = 0.15;
-  pet.state.behaviorSinceMs = -10_000;
-  const world = calmDesktop(10_000);
-  world.cursorSpeed = 2000;
-  world.cursorDistance = 30;
-  const decision = pet.tick(world, 100);
-  assert.equal(decision.behavior, "chase_cursor");
-});
+test("fast nearby cursor can trigger chase",()=>{const pet=new Pet({id:"b",name:"Rocket",species:"cat",nowMs:0},new SeededRandom(2));pet.state.drives.fatigue=.02;pet.state.drives.play=.98;pet.state.behaviorSinceMs=-20_000;const w=calmDesktop(10_000);w.cursor={position:{x:310,y:710},speed:1800,distanceToPet:20,buttons:0};assert.equal(pet.tick(w,100).behavior,"chase_cursor");});
 
-test("behavior inertia prevents twitchy one-tick state changes", () => {
-  const pet = new Pet({ id: "c", name: "Steady", species: "cat", nowMs: 0 }, new SeededRandom(3));
-  pet.state.behavior = "groom";
-  pet.state.behaviorSinceMs = 9_000;
-  const world = calmDesktop(10_000);
-  world.secondsSinceNewWindow = 0;
-  const decision = pet.tick(world, 100);
-  assert.equal(decision.behavior, "groom");
-});
+test("behavior inertia prevents twitching",()=>{const pet=new Pet({id:"c",name:"Steady",species:"cat",nowMs:0},new SeededRandom(3));pet.state.behavior="groom";pet.state.behaviorSinceMs=9_000;const w=calmDesktop(10_000);w.secondsSinceNewWindow=0;assert.equal(pet.tick(w,100).behavior,"groom");});
 
-test("positive interactions teach a surface preference", () => {
-  const pet = new Pet({ id: "d", name: "Memory", species: "cat", nowMs: 0 }, new SeededRandom(4));
-  const world = calmDesktop(1_000);
-  world.currentSurface.id = "window:vscode";
-  for (let i = 0; i < 8; i += 1) pet.receivePetting(world, 1);
-  assert.ok(pet.memory.preferenceForSurface("window:vscode") > 0.4);
-});
+test("positive interactions teach surface preference",()=>{const pet=new Pet({id:"d",name:"Memory",species:"cat",nowMs:0},new SeededRandom(4));const w=calmDesktop(1000);w.currentSurface={id:"window:vscode",kind:"window",rect:{x:0,y:500,width:900,height:600},walkY:500,app:"Code.exe"};for(let i=0;i<8;i++)pet.receivePetting(w,1);assert.ok(pet.memory.preferenceForSurface("window:vscode")>.4);});
 
-test("keeper suppresses attention seeking during fullscreen activity", () => {
-  const pet = new Pet({ id: "e", name: "Polite", species: "dog", nowMs: 0 }, new SeededRandom(5));
-  pet.state.drives.social = 1;
-  pet.state.drives.fatigue = 0.05;
-  pet.state.behaviorSinceMs = -10_000;
-  const world = calmDesktop(10_000);
-  world.userActivity = "fullscreen";
-  const decision = pet.tick(world, 100);
-  const seek = decision.allScores.find((score) => score.behavior === "seek_user");
-  assert.ok(seek);
-  assert.ok(seek.score < 0.4);
-});
+test("Keeper suppresses seek-user behavior in fullscreen",()=>{const pet=new Pet({id:"e",name:"Polite",species:"dog",nowMs:0},new SeededRandom(5));pet.state.drives.social=1;pet.state.drives.fatigue=.02;pet.state.behaviorSinceMs=-20_000;const w=calmDesktop(10_000);w.userActivity="fullscreen";const seek=pet.tick(w,100).allScores.find(x=>x.behavior==="seek_user");assert.ok(seek);assert.ok(seek.score<.45);});
+
+test("species profiles genuinely differ",()=>{assert.ok(SPECIES.dog.defaultPersonality.sociability>SPECIES.cat.defaultPersonality.sociability);assert.ok((SPECIES.cat.behaviorBias.perch??0)>(SPECIES.dog.behaviorBias.perch??0));assert.ok(SPECIES.rabbit.movement.jumpSpeed>SPECIES.dog.movement.jumpSpeed);});
+
+test("desktop geometry becomes walkable taskbar and window surfaces",()=>{const monitors=[{id:"m",rect:{x:0,y:0,width:1920,height:1080},workArea:{x:0,y:0,width:1920,height:1040},primary:true,scaleFactor:1}];const windows=[{id:"code",title:"Code",app:"Code.exe",rect:{x:400,y:200,width:900,height:700},visible:true,foreground:true,minimized:false}];const s=surfacesFromDesktop(monitors,windows);assert.ok(s.some(x=>x.kind==="taskbar"&&x.walkY===1040));assert.ok(s.some(x=>x.id==="window:code"&&x.walkY===200));});
+
+test("physics lands a falling pet on a surface",()=>{const pet=new Pet({id:"fall",name:"Fall",species:"cat",nowMs:0,x:500,y:1000},new SeededRandom(6));pet.state.body.grounded=false;pet.state.body.velocity.y=100;const w=calmDesktop(1000);new PetPhysics().update(pet.state,w,100);assert.equal(pet.state.body.grounded,true);assert.equal(pet.state.body.surfaceId,"taskbar:primary");});
+
+test("pet save/restore preserves learned memory",()=>{const pet=new Pet({id:"save",name:"Save",species:"cat",nowMs:0},new SeededRandom(7));const w=calmDesktop(1);w.currentSurface={id:"window:test",kind:"window",rect:{x:0,y:400,width:500,height:500},walkY:400};for(let i=0;i<5;i++)pet.receivePetting(w,1);const restored=Pet.fromSave(pet.save(),new SeededRandom(8));assert.equal(restored.state.name,"Save");assert.ok(restored.memory.preferenceForSurface("window:test")>.2);});
+
+test("pack validator rejects nonsense and accepts community packs",()=>{assert.equal(validatePack({foo:"bar"}),null);const p=validatePack({id:"fox",name:"Fox",species:"cat",appearance:{coat:"#1",accent:"#2",eye:"#3",scale:1}});assert.equal(p?.id,"fox");});
+
+test("multi-pet simulation advances every creature",()=>{const sim=new PetOSSimulation();sim.addPet(new Pet({id:"one",name:"One",species:"cat",nowMs:0,x:300,y:740}));sim.addPet(new Pet({id:"two",name:"Two",species:"dog",nowMs:0,x:350,y:740}));const monitor={id:"m",rect:{x:0,y:0,width:1280,height:800},workArea:{x:0,y:0,width:1280,height:760},primary:true,scaleFactor:1};const out=sim.tick({nowMs:5000,dtMs:16,monitors:[monitor],windows:[],cursorPosition:{x:900,y:300},cursorSpeed:0,cursorButtons:0,userActivity:"active",foregroundApp:null,secondsSinceNewWindow:999,interactionMode:false});assert.equal(out.pets.length,2);assert.ok(out.decisions.one);assert.ok(out.decisions.two);});

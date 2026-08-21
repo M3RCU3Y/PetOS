@@ -5,3 +5,8 @@ export * from "./core/memory.js";
 export * from "./core/brain.js";
 export * from "./core/pet.js";
 export * from "./core/world.js";
+export * from "./core/physics.js";
+export * from "./core/simulation.js";
+export * from "./core/packs.js";
+export * from "./core/persistence.js";
+export * from "./core/cortex.js";

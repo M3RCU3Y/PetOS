@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "PetOS main overlay capability",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

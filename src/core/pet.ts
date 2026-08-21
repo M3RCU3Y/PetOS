@@ -1,129 +1,111 @@
 import { PetBrain } from "./brain.js";
-import { clamp01, clamp11, lerp } from "./math.js";
+import { clamp, lerp } from "./math.js";
 import { PetMemory } from "./memory.js";
-import type { RandomSource } from "./rng.js";
-import { DEFAULT_TRAITS, SPECIES } from "./species.js";
-import type { Decision, Drives, PetState, SpeciesId, WorldObservation } from "./types.js";
+import { SeededRandom, type RandomSource } from "./rng.js";
+import { SPECIES, personalityFor } from "./species.js";
+import type { Decision, EpisodicMemory, PetSave, PetState, Personality, Species, WorldSnapshot } from "./types.js";
 
-export interface PetOptions {
-  id: string;
-  name: string;
-  species?: SpeciesId;
-  nowMs?: number;
-}
+export interface PetInit { id:string; name:string; species:Species; nowMs:number; personality?:Partial<Personality>; x?:number; y?:number; }
 
 export class Pet {
-  readonly memory = new PetMemory();
-  readonly state: PetState;
+  readonly memory: PetMemory;
+  state: PetState;
   private readonly brain: PetBrain;
+  private readonly rng: RandomSource;
+  private lastRememberedBehavior: string;
 
-  constructor(options: PetOptions, rng: RandomSource) {
-    const species = options.species ?? "cat";
-    const nowMs = options.nowMs ?? Date.now();
-    this.brain = new PetBrain(rng);
+  constructor(init: PetInit, rng: RandomSource = new SeededRandom(hashString(init.id))) {
+    this.rng = rng;
+    const profile = SPECIES[init.species];
     this.state = {
-      id: options.id,
-      name: options.name,
-      species,
-      traits: { ...DEFAULT_TRAITS[species] },
-      drives: {
-        fatigue: 0.28,
-        hunger: 0.18,
-        play: 0.42,
-        social: 0.34,
-        curiosity: 0.5,
-        comfortDeficit: 0.12
-      },
-      affect: { valence: 0.25, arousal: 0.45, stress: 0.08 },
-      behavior: "observe",
-      behaviorSinceMs: nowMs
+      id:init.id, name:init.name, species:init.species, personality:personalityFor(init.species,init.personality),
+      drives:{fatigue:.18,hunger:.12,thirst:.1,play:.42,social:.24,curiosity:.5,comfort:.55},
+      affect:{valence:.35,arousal:.35,stress:.05},
+      body:{position:{x:init.x ?? 300,y:init.y ?? 700},velocity:{x:0,y:0},facing:1,grounded:true,surfaceId:null,target:null,held:false},
+      behavior:"idle", behaviorSinceMs:init.nowMs, behaviorTargetId:null, ageSeconds:0,bond:.15,lastInteractionMs:init.nowMs,favoriteSurfaceId:null
     };
+    this.memory = new PetMemory();
+    this.brain = new PetBrain(profile,rng);
+    this.lastRememberedBehavior = this.state.behavior;
   }
 
-  tick(world: WorldObservation, deltaMs: number): Decision {
-    this.updateDrives(deltaMs, world);
-    this.updateAffect(deltaMs, world);
+  static fromSave(save: PetSave, rng?:RandomSource): Pet {
+    const pet = new Pet({id:save.state.id,name:save.state.name,species:save.state.species,nowMs:save.state.behaviorSinceMs,personality:save.state.personality,x:save.state.body.position.x,y:save.state.body.position.y}, rng);
+    pet.state = structuredClone(save.state);
+    const persisted = new PetMemory(save);
+    (pet as {memory:PetMemory}).memory = persisted;
+    return pet;
+  }
 
-    const decision = this.brain.decide(this.state, world, this.memory);
+  tick(world: WorldSnapshot, dtMs = world.dtMs): Decision {
+    const dt = Math.min(dtMs, 1000) / 1000;
+    this.updateDrives(world,dt);
+    this.updateAffect(world,dt);
+    this.memory.decay(dt);
+    const decision = this.brain.decide(this.state,world,this.memory);
     if (decision.behavior !== this.state.behavior) {
-      this.memory.remember({
-        atMs: world.nowMs,
-        type: "behavior",
-        surfaceId: world.currentSurface.id,
-        behavior: decision.behavior,
-        valence: this.state.affect.valence * 0.25,
-        description: `${this.state.name} chose ${decision.behavior}`
-      });
       this.state.behavior = decision.behavior;
       this.state.behaviorSinceMs = world.nowMs;
-    }
-
-    this.applyBehaviorEffects(deltaMs);
+      this.state.behaviorTargetId = decision.targetId ?? null;
+      this.state.body.target = decision.targetPosition ? {...decision.targetPosition} : null;
+    } else if (decision.targetPosition) this.state.body.target = {...decision.targetPosition};
+    this.state.ageSeconds += dt;
+    this.state.favoriteSurfaceId = this.memory.favoriteSurface();
+    this.maybeRememberBehavior(world);
     return decision;
   }
 
-  receivePetting(world: WorldObservation, intensity = 0.6): void {
-    const amount = clamp01(intensity);
-    this.state.affect.valence = clamp11(this.state.affect.valence + 0.18 * amount);
-    this.state.affect.stress = clamp01(this.state.affect.stress - 0.12 * amount);
-    this.state.drives.social = clamp01(this.state.drives.social - 0.22 * amount);
-    this.memory.remember({
-      atMs: world.nowMs,
-      type: "interaction",
-      surfaceId: world.currentSurface.id,
-      valence: 0.75 * amount,
-      description: "Received petting from the user"
-    });
+  private updateDrives(world:WorldSnapshot,dt:number):void {
+    const d=this.state.drives,p=this.state.personality,b=this.state.behavior;
+    d.fatigue = clamp(d.fatigue + dt*(.00045 + p.energy*.0003) - (b==="sleep"?dt*.0085:0));
+    d.hunger = clamp(d.hunger + dt*.00022 - (b==="eat"?dt*.02:0));
+    d.thirst = clamp(d.thirst + dt*.0003 - (b==="drink"?dt*.025:0));
+    d.play = clamp(d.play + dt*.00055*(.5+p.playfulness) - (["chase_cursor","play_toy","play_pet","zoomies","pounce"].includes(b)?dt*.005:0));
+    d.social = clamp(d.social + dt*.00035*(.5+p.sociability) - (["seek_user","play_pet","greet_pet","follow_pet"].includes(b)?dt*.0035:0));
+    d.curiosity = clamp(d.curiosity + dt*.00042*(.5+p.curiosity) - (["investigate","walk","perch"].includes(b)?dt*.0025:0));
+    const surfaceComfort = world.currentSurface?.comfort ?? .25;
+    d.comfort = clamp(lerp(d.comfort,surfaceComfort,b==="sleep"?dt*.02:dt*.003));
   }
 
-  private updateDrives(deltaMs: number, world: WorldObservation): void {
-    const rates = SPECIES[this.state.species].driveRates;
-    const d = this.state.drives;
-    d.fatigue = clamp01(d.fatigue + rates.fatigue * deltaMs * (1.12 - this.state.traits.energy * 0.35));
-    d.hunger = clamp01(d.hunger + rates.hunger * deltaMs * (0.72 + this.state.traits.foodDrive * 0.5));
-    d.play = clamp01(d.play + rates.play * deltaMs * (0.6 + this.state.traits.playfulness * 0.75));
-    d.social = clamp01(d.social + rates.social * deltaMs * (0.5 + this.state.traits.sociability * 0.8));
-    d.curiosity = clamp01(d.curiosity + rates.curiosity * deltaMs * (0.55 + this.state.traits.curiosity * 0.75));
-    d.comfortDeficit = clamp01(lerp(d.comfortDeficit, 1 - world.currentSurface.quality, Math.min(1, deltaMs / 15_000)));
+  private updateAffect(world:WorldSnapshot,dt:number):void {
+    const a=this.state.affect,d=this.state.drives,b=this.state.behavior;
+    const positive = (["play_pet","play_toy","greet_pet","sleep","groom"].includes(b)? .55: .32) + this.state.bond*.16;
+    a.valence = clamp(lerp(a.valence,positive,dt*.07),-1,1);
+    const desiredArousal = ["run","zoomies","chase_cursor","pounce"].includes(b)?.86:b==="sleep"?.05:.3+d.play*.18;
+    a.arousal = clamp(lerp(a.arousal,desiredArousal,dt*.12));
+    const threat = world.userActivity==="fullscreen" && world.cursor.distanceToPet<80 && world.cursor.speed>1400 ? .5:0;
+    a.stress = clamp(lerp(a.stress,threat,dt*.18));
   }
 
-  private updateAffect(deltaMs: number, world: WorldObservation): void {
-    const a = this.state.affect;
-    const settle = Math.min(1, deltaMs / 60_000);
-    a.valence = clamp11(lerp(a.valence, 0.15, settle));
-    a.stress = clamp01(lerp(a.stress, world.currentSurface.moving ? 0.32 : 0.06, settle * 1.5));
-    const activityArousal = world.userActivity === "gaming" ? 0.68 : world.userActivity === "typing" ? 0.5 : 0.3;
-    a.arousal = clamp01(lerp(a.arousal, activityArousal, settle));
+  receivePetting(world:WorldSnapshot,intensity=.5):void {
+    const amount=clamp(intensity);
+    this.state.bond=clamp(this.state.bond+amount*.012);
+    this.state.drives.social=clamp(this.state.drives.social-amount*.08);
+    this.state.affect.valence=clamp(this.state.affect.valence+amount*.12,-1,1);
+    this.state.lastInteractionMs=world.nowMs;
+    this.remember({kind:"petting",atMs:world.nowMs,valence:.85,salience:.7*amount,note:"The user gave affectionate attention",...(world.currentSurface?{surfaceId:world.currentSurface.id}:{}),...(world.foregroundApp?{app:world.foregroundApp}:{})});
   }
 
-  private applyBehaviorEffects(deltaMs: number): void {
-    const seconds = deltaMs / 1000;
-    const d: Drives = this.state.drives;
-    switch (this.state.behavior) {
-      case "sleep":
-        d.fatigue = clamp01(d.fatigue - 0.0003 * seconds);
-        d.play = clamp01(d.play + 0.00008 * seconds);
-        break;
-      case "rest":
-        d.fatigue = clamp01(d.fatigue - 0.00008 * seconds);
-        break;
-      case "chase_cursor":
-        d.play = clamp01(d.play - 0.0012 * seconds);
-        d.fatigue = clamp01(d.fatigue + 0.00005 * seconds);
-        break;
-      case "seek_user":
-        d.social = clamp01(d.social - 0.0008 * seconds);
-        break;
-      case "investigate":
-      case "wander":
-        d.curiosity = clamp01(d.curiosity - 0.0009 * seconds);
-        d.fatigue = clamp01(d.fatigue + 0.00003 * seconds);
-        break;
-      case "groom":
-        d.comfortDeficit = clamp01(d.comfortDeficit - 0.001 * seconds);
-        break;
-      default:
-        break;
-    }
+  frighten(world:WorldSnapshot, note="sudden movement"):void {
+    this.state.affect.stress=clamp(this.state.affect.stress+.35);
+    this.state.affect.arousal=clamp(this.state.affect.arousal+.25);
+    this.remember({kind:"fright",atMs:world.nowMs,valence:-.6,salience:.7,note});
   }
+
+  rememberSocial(otherId:string, world:WorldSnapshot, valence=.5):void {
+    this.memory.adjustRelationship(otherId,valence*.018);
+    this.remember({kind:"social",subjectId:otherId,atMs:world.nowMs,valence,salience:.4,note:"Social encounter with another pet"});
+  }
+
+  private maybeRememberBehavior(world:WorldSnapshot):void {
+    if (this.lastRememberedBehavior===this.state.behavior) return;
+    this.lastRememberedBehavior=this.state.behavior;
+    if (this.state.behavior==="sleep" && world.currentSurface) this.remember({kind:"sleep",atMs:world.nowMs,valence:.5,salience:.35,surfaceId:world.currentSurface.id,note:"Settled down to sleep"});
+    if (this.state.behavior==="investigate" && world.currentSurface) this.remember({kind:"discovery",atMs:world.nowMs,valence:.25,salience:.3,surfaceId:world.currentSurface.id,note:"Investigated a desktop surface"});
+  }
+
+  private remember(input:Omit<EpisodicMemory,"id">):void { this.memory.remember({id:`${this.state.id}:${input.atMs}:${this.rng.next().toString(36).slice(2,7)}`,...input}); }
+  save():PetSave { const mem=this.memory.serialize(); return {version:1,state:structuredClone(this.state),...mem}; }
 }
+
+function hashString(text:string):number { let h=2166136261; for(const c of text){h^=c.charCodeAt(0);h=Math.imul(h,16777619);} return h>>>0; }

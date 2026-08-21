@@ -1,33 +1,4 @@
-import { Pet } from "./core/pet.js";
-import { SeededRandom } from "./core/rng.js";
-import { calmDesktop } from "./core/world.js";
-
-const rng = new SeededRandom(42);
-const pet = new Pet({ id: "pet-1", name: "Mochi", species: "cat", nowMs: 0 }, rng);
-
-let nowMs = 0;
-for (let step = 0; step < 12; step += 1) {
-  nowMs += 5_000;
-  const world = calmDesktop(nowMs);
-
-  if (step >= 3 && step <= 5) {
-    world.cursorSpeed = 1450;
-    world.cursorDistance = 90;
-  }
-
-  if (step === 7) {
-    world.secondsSinceNewWindow = 1;
-    world.currentSurface = {
-      id: "window:vscode",
-      kind: "window",
-      quality: 0.82,
-      elevation: 0.72,
-      moving: false
-    };
-  }
-
-  const decision = pet.tick(world, 5_000);
-  console.log(
-    `${String(nowMs / 1000).padStart(3)}s  ${decision.behavior.padEnd(14)} score=${decision.score.toFixed(2)}  ${decision.reasons.join("; ")}`
-  );
-}
+import { Pet, PetOSSimulation } from "./index.js";
+const sim=new PetOSSimulation();sim.addPet(new Pet({id:"mochi",name:"Mochi",species:"cat",nowMs:0,x:480,y:1040}));
+const monitor={id:"primary",rect:{x:0,y:0,width:1920,height:1080},workArea:{x:0,y:0,width:1920,height:1040},primary:true,scaleFactor:1};
+for(let i=0;i<24;i++){const now=i*1000;const cursor=i>5&&i<11?{x:520+i*18,y:1000}:{x:1000,y:500};const windows=i>14?[{id:"code",title:"PetOS — VS Code",app:"Code.exe",rect:{x:650,y:260,width:900,height:650},visible:true,foreground:true,minimized:false}]:[];const frame=sim.tick({nowMs:now,dtMs:1000,monitors:[monitor],windows,cursorPosition:cursor,cursorSpeed:i>5&&i<11?1200:20,cursorButtons:0,userActivity:"active",foregroundApp:windows.length?"Code.exe":null,secondsSinceNewWindow:i===15?0:999,interactionMode:false});const p=frame.pets[0]!;console.log(String(i).padStart(2,"0"),p.behavior.padEnd(15),Math.round(p.body.position.x),Math.round(p.body.position.y),frame.decisions[p.id]?.reason);}

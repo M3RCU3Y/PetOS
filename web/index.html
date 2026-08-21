@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>PetOS</title><link rel="stylesheet" href="./styles.css"></head><body>
+<canvas id="pet-canvas" aria-label="PetOS pet world"></canvas><button id="settings-open" aria-label="Open PetOS settings">PetOS</button><div id="settings-backdrop"></div>
+<aside id="settings-panel" aria-label="PetOS settings"><header><div><span class="eyebrow">PETOS</span><h1>Living desktop</h1></div><button id="settings-close" aria-label="Close">×</button></header>
+<section><h2>World</h2><label class="toggle"><span>Pets enabled<small>Pause or resume the whole habitat</small></span><input id="enabled-toggle" type="checkbox"></label><label class="toggle"><span>Interaction mode<small>Lets clicks reach pets. Ctrl + Shift + P</small></span><input id="interaction-toggle" type="checkbox"></label><label class="toggle"><span>Debug mind<small>Show behavior and drive telemetry</small></span><input id="debug-toggle" type="checkbox"></label></section>
+<section><h2>Your pets</h2><div id="pet-list"></div><div class="stack"><select id="pack-select"></select><input id="pet-name" placeholder="Pet name"><button class="primary" id="add-pet">Add pet</button></div></section>
+<section><h2>Habitat</h2><div class="button-grid"><button data-object="bed">🛏 Bed</button><button data-object="ball">● Ball</button><button data-object="box">▣ Box</button></div></section>
+<section><h2>Pet packs</h2><p>Import a JSON pet pack. Appearance and personality are copied into the pet when created.</p><label class="file">Import .json<input id="pack-file" type="file" accept="application/json,.json"></label></section>
+<section class="privacy"><h2>Privacy</h2><p><strong>Default: Ambient.</strong> PetOS reads geometry, cursor activity, foreground app and activity state. It does not capture screen contents or keystrokes.</p></section>
+<footer><span>PetOS alpha · creature first, mascot second.</span><button id="reset-state">Reset world</button></footer></aside>
+<script type="module" src="./src/app/main.js"></script></body></html>

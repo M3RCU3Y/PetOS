@@ -1,63 +1,98 @@
-# PetOS Architecture
+# PetOS architecture
 
-PetOS is a creature simulation first and a desktop overlay second. The goal is believable causality: behavior should emerge from perception, drives, affect, personality, memory, species instincts, and the current desktop world.
+## 1. Core rule
 
-## Runtime layers
+The brain never commands pixels. It chooses goals and behaviors. Physics moves the body. The renderer observes the body. Native platform code only supplies perception and window control.
 
-1. **Platform sensor**: monitors, taskbar, visible windows, cursor, active-app category, idle state.
-2. **World model**: converts raw OS geometry into surfaces, edges, moving platforms, objects, pets, and affordances.
-3. **Body**: locomotion, collision, jumping, falling, climbing, carrying, dragging.
-4. **Cognition**: utility scoring chooses goals. Behavior inertia and cooldowns prevent twitchy randomness.
-5. **Affect**: continuous valence/arousal/stress changes decision weights rather than merely selecting a facial animation.
-6. **Memory**: episodic interactions consolidate into preferences and habits.
-7. **Keeper**: interruption policy keeps the pet quiet during gaming, fullscreen apps, presentations, and user dismissals.
-8. **Cortex (optional)**: rare high-level LLM/VLM reasoning. It proposes intentions, never frame-by-frame movement.
-9. **Renderer**: pixel-art sprite animation. Rendering must never own cognition state.
+This prevents three common desktop-pet failure modes: scripted animation roulette, OS-specific logic infecting behavior code, and AI models micromanaging movement.
 
-## Platform boundary
+## 2. Cognition stack
 
-The simulation core must not import Tauri or Win32 APIs. A platform adapter will emit observations into the core. This makes the brain testable headlessly and gives us a future path to macOS/Linux.
+### Reflex/body layer
+Gravity, surface collision, held state and immediate movement constraints.
 
-The Windows implementation is planned around Tauri 2 + Rust. Pet windows will be transparent, borderless, always-on-top and normally click-through except while directly interacting with a pet. Native Windows APIs will provide real desktop/window topology where Tauri does not expose enough detail.
+### Drives
+Fatigue, hunger, thirst, play, social need, curiosity and comfort change slowly and are affected by behavior.
 
-## Decision principle
+### Affect
+Valence, arousal and stress bias behavior without becoming cartoon mood labels.
 
-Animations are outputs, not decisions.
+### Personality
+Nine continuous traits modify species defaults. Personality is stable; drives and affect are dynamic.
 
-Bad:
+### Utility brain
+Candidate behaviors receive scores from needs, personality, species bias, context, learned preference, relationships and controlled stochastic noise. Behavior inertia gives chosen actions enough time to read as intentional.
 
-`random -> animation`
+### Keeper
+Focus-aware suppression sits between social drive and interruption. Fullscreen, gaming and presentation contexts strongly reduce attention-seeking without pausing autonomous life.
 
-PetOS:
+### Cortex
+`src/core/cortex.ts` is a deliberately high-level intelligence interface. Optional future local/cloud models should produce intentions, never frame-by-frame movement.
 
-`perception -> world -> needs/emotion/memory -> goal -> behavior -> locomotion -> animation`
+## 3. Memory
 
-This lets seven ordinary animations form a small causal story instead of a screensaver.
+`PetMemory` stores a bounded episodic stream plus consolidated maps:
 
-## Simulation rates
+- surface preference
+- foreground-app preference
+- relationships with other pets
 
-- body/physics: 60 Hz
-- animation: 60 Hz
-- perception: ~10 Hz
-- world topology: 2-5 Hz, plus OS events
-- drive/affect updates: ~5 Hz
-- utility reevaluation: 2-5 Hz
-- memory consolidation: event-driven
-- optional model inference: rare/event-driven
+Positive repeated experiences reinforce places. Preferences decay slowly rather than becoming permanent after one event.
 
-## Near-term milestones
+## 4. World model
 
-### 0.1 Creature
-Headless cognition engine, species profiles, drives, affect, memory, Keeper constraints and deterministic tests.
+Native desktop input is converted into neutral entities:
 
-### 0.2 World
-Windows taskbar/monitor topology, surfaces and cursor perception.
+- monitors and work areas
+- taskbar/floor surfaces
+- visible window top surfaces
+- cursor state
+- habitat objects
+- nearby pets
 
-### 0.3 Body
-Real transparent pet window, taskbar locomotion, jump/fall/perch and mouse interaction.
+The brain sees these entities, not HWNDs or Tauri objects.
 
-### 0.4 Learning
-Persistent SQLite memories, favorite places, habits and adaptation.
+## 5. Simulation
 
-### 0.5 Pack
-Multiple pets and social relationships.
+`PetOSSimulation` owns many `Pet` instances and shared habitat objects. Each tick creates a pet-relative `WorldSnapshot`, runs cognition, then physics.
+
+The current rates are intentionally decoupled by responsibility even though the browser driver presently invokes them from a single animation loop. Native desktop sensing is throttled to roughly 10 Hz, while rendering can remain 60 Hz.
+
+## 6. Rendering
+
+The alpha renderer is procedural pixel art. This is intentional: PetOS can exercise every behavior and species without waiting on an asset pipeline. The renderer is replaceable by sprite-sheet pet packs later.
+
+## 7. Desktop shell
+
+Tauri 2 owns one transparent, borderless, always-on-top overlay. The Rust layer:
+
+- stretches it across the Windows virtual desktop
+- defaults to click-through
+- exposes an interaction mode
+- creates a tray menu
+- enumerates visible top-level windows
+- enumerates monitor/work areas
+- reads global cursor position/buttons
+- identifies foreground process names
+- infers fullscreen activity
+
+The Win32 sensor code uses direct FFI so PetOS does not need a second Windows wrapper crate just to read basic geometry.
+
+## 8. Persistence
+
+The alpha stores the complete creature record in browser local storage. Saves contain versioned pet state, episodic memory, consolidated preferences and appearance. Storage is behind a tiny adapter so it can migrate to SQLite without changing cognition.
+
+## 9. Pet packs
+
+Current packs are JSON identity bundles. The target pack system will eventually add:
+
+- sprite atlases and animation metadata
+- sounds
+- species/ethogram extensions
+- accessories and markings
+- behavior affordances
+- signed metadata and compatibility versioning
+
+## 10. Future platform adapters
+
+The simulation is platform-neutral. Windows is first because window geometry and taskbar interaction are central to the product. macOS and Linux should implement the same `DesktopFrame` contract rather than fork the creature engine.
