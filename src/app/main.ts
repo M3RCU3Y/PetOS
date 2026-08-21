@@ -8,6 +8,7 @@ import { PixelRenderer } from "./renderer.js";
 import { SettingsUI } from "./ui.js";
 import { SoundEngine } from "./sound.js";
 import { showOnboarding } from "./onboarding.js";
+import { InteractionManager, type InteractionTarget } from "./interaction.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
 const renderer=new PixelRenderer(canvas);
@@ -18,6 +19,19 @@ let settings:PetOSSettings={...DEFAULT_SETTINGS};
 let lastFrame=performance.now(),lastSave=0,lastNativePoll=0,lastNative:any=null,virtualBounds:Rect={x:0,y:0,width:innerWidth,height:innerHeight};
 const sound=new SoundEngine();sound.setEnabled(settings.sound);
 const prevBehaviors=new Map<string,string>();
+const interactions=new InteractionManager(canvas,(target)=>{
+  const pet=sim.pets.get(target.petId);
+  if(!pet)return;
+  const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true};
+  if(target.kind==="pet")pet.receivePetting(world,.6);
+  else if(target.kind==="feed"){pet.state.drives.hunger=Math.max(0,pet.state.drives.hunger-.3);pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.15);}
+  else if(target.kind==="call")pet.state.body.target={...target.position};
+});
+interactions.setPetFinder((x,y)=>{
+  const point={x,y};
+  for(const pet of [...sim.pets.values()].reverse()){if(renderer.hitTest(pet.state,point,virtualBounds))return pet.state;}
+  return null;
+});
 let running=true,dragging:string|null=null,dragOffset={x:0,y:0};
 
 const loaded=persistence.load();
