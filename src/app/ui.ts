@@ -1,3 +1,4 @@
+import { extractPalette } from "./photo.js";
 import { computeSocialEdges, renderSocialGraph } from "./social.js";
 import { BUILTIN_PACKS, validatePack, type PetPack } from "../core/packs.js";
 import { SPECIES } from "../core/species.js";
@@ -104,6 +105,19 @@ export class SettingsUI {
     coat.addEventListener("input",()=>this.creatorState.coat=coat.value);
     accent.addEventListener("input",()=>this.creatorState.accent=accent.value);
     eye.addEventListener("input",()=>this.creatorState.eye=eye.value);
+    const photoInput=document.querySelector<HTMLInputElement>("#creator-photo")!;
+    photoInput.addEventListener("change",async()=>{
+      const f=photoInput.files?.[0];
+      if(!f)return;
+      try{
+        const palette=await extractPalette(f);
+        this.creatorState.coat=palette.coat;
+        this.creatorState.accent=palette.accent;
+        this.creatorState.eye=palette.eye;
+        const coat=document.querySelector<HTMLInputElement>("#creator-coat")!,accent=document.querySelector<HTMLInputElement>("#creator-accent")!,eye=document.querySelector<HTMLInputElement>("#creator-eye")!;
+        coat.value=palette.coat;accent.value=palette.accent;eye.value=palette.eye;
+      }catch{alert("Could not read that image.");}finally{photoInput.value="";}
+    });
     document.querySelector("#creator-create")!.addEventListener("click",()=>{
       const nameInput=document.querySelector<HTMLInputElement>("#creator-name")!;
       const name=nameInput.value.trim()||"Buddy";
