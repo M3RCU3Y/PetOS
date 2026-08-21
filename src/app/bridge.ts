@@ -29,6 +29,7 @@ export interface DesktopBridge {
   onSettingsRequested(cb:()=>void):Promise<()=>void>;
   setAutostart(enabled:boolean):Promise<void>;
   getAutostart():Promise<boolean>;
+  logEvent(level:string,message:string):Promise<void>;
 }
 
 export class TauriDesktopBridge implements DesktopBridge {
@@ -41,6 +42,7 @@ export class TauriDesktopBridge implements DesktopBridge {
   async onSettingsRequested(cb:()=>void):Promise<()=>void>{if(!this.api.event?.listen)return()=>{};return this.api.event.listen("petos://show-settings",()=>cb());}
   async setAutostart(enabled:boolean):Promise<void>{await this.api.core!.invoke("set_autostart",{enabled});}
   async getAutostart():Promise<boolean>{try{return await this.api.core!.invoke<boolean>("get_autostart");}catch{return false;}}
+  async logEvent(level:string,message:string):Promise<void>{try{await this.api.core!.invoke("log_event",{level,message});}catch{/* logging is best-effort */}}
 }
 
 export class MockDesktopBridge implements DesktopBridge {
@@ -69,6 +71,7 @@ export class MockDesktopBridge implements DesktopBridge {
   async onSettingsRequested(cb:()=>void):Promise<()=>void>{this.listeners.add(cb);return()=>this.listeners.delete(cb);}
   async setAutostart(enabled:boolean):Promise<void>{try{localStorage.setItem("petos:mock-autostart",enabled?"1":"0");}catch{}}
   async getAutostart():Promise<boolean>{try{return localStorage.getItem("petos:mock-autostart")==="1";}catch{return false;}}
+  async logEvent(_level:string,_message:string):Promise<void>{}
 }
 
 export function createDesktopBridge():DesktopBridge{return window.__TAURI__?.core?.invoke?new TauriDesktopBridge():new MockDesktopBridge();}

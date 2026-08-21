@@ -255,4 +255,6 @@ export interface PetOSSettings {
   focusMode: boolean;
   focusWorkMinutes: number;
   focusBreakMinutes: number;
+  /** Optional JSON manifest URL for the update checker: {"version":"x.y.z","notes":"..."} */
+  updateManifestUrl: string;
 }

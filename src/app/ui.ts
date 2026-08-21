@@ -26,6 +26,8 @@ export interface UIActions {
   onCortexConfig(provider:"off"|"ollama"|"openai"|"openrouter"|"gemini"|"anthropic",apiKey:string,model:string):void;
   onToggleAutostart(enabled:boolean):void;
   onFocusConfig(enabled:boolean,workMinutes:number,breakMinutes:number):void;
+  onUpdateManifestUrl(url:string):void;
+  onCheckUpdates():Promise<{status:"available"|"latest"|"error";message:string}>;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -134,6 +136,20 @@ export class SettingsUI {
       const emit=()=>this.actions.onFocusConfig(focusToggle.checked,Math.max(1,Number(focusWork.value)||25),Math.max(1,Number(focusBreak.value)||5));
       focusToggle.addEventListener("change",emit);focusWork.addEventListener("change",emit);focusBreak.addEventListener("change",emit);
     }
+    const updateUrl=document.querySelector<HTMLInputElement>("#update-url")!;
+    updateUrl.value=settings.updateManifestUrl;
+    let urlDebounce=0;
+    updateUrl.addEventListener("input",()=>{clearTimeout(urlDebounce);urlDebounce=setTimeout(()=>this.actions.onUpdateManifestUrl(updateUrl.value.trim()),500);});
+    document.querySelector("#update-check")?.addEventListener("click",async()=>{
+      const status=document.querySelector<HTMLElement>("#update-status");
+      if(status)status.textContent="Checking…";
+      try{
+        const result=await this.actions.onCheckUpdates();
+        if(status){status.textContent=result.message;status.style.color=result.status==="available"?"#8bd6a1":result.status==="error"?"#d85b58":"inherit";}
+      }catch{
+        if(status)status.textContent="Update check failed.";
+      }
+    });
     const cortex=document.querySelector<HTMLSelectElement>("#cortex-provider");
     if(cortex){
       const keyInput=document.querySelector<HTMLInputElement>("#cortex-key")!,modelInput=document.querySelector<HTMLInputElement>("#cortex-model")!;

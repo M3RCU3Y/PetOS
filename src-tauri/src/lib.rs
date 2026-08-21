@@ -1,9 +1,32 @@
 use serde::Serialize;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder};
+
+/// Best-effort breadcrumb/panic logging so runtime QA has a trail on disk.
+fn append_log_line(line: &str) {
+    let dir = std::env::temp_dir().join("petos-logs");
+    let _ = fs::create_dir_all(&dir);
+    let path: PathBuf = dir.join("petos.log");
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "{}", line);
+    }
+}
+
+#[tauri::command]
+fn log_event(level: String, message: String) -> Result<(), String> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    append_log_line(&format!("[{stamp}] {level}: {message}"));
+    Ok(())
+}
 
 #[derive(Clone, Serialize, Debug)]
 struct Point { x: f64, y: f64 }
@@ -98,10 +121,17 @@ fn fit_overlay(app:&tauri::AppHandle) {
 }
 
 pub fn run() {
+    std::panic::set_hook(Box::new(|info| {
+        append_log_line(&format!("PANIC: {info}"));
+    }));
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
+            // A second launch should just focus the existing overlay.
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_sql::Builder::default().build())
         .manage(DesktopState::default())
-        .invoke_handler(tauri::generate_handler![get_desktop_snapshot,set_interaction_mode,set_overlay_visible,show_settings,set_autostart,get_autostart])
+        .invoke_handler(tauri::generate_handler![get_desktop_snapshot,set_interaction_mode,set_overlay_visible,show_settings,set_autostart,get_autostart,log_event])
         .setup(|app| {
             fit_overlay(app.handle());
             let settings=MenuItem::with_id(app,"settings","Open PetOS",true,None::<&str>)?;

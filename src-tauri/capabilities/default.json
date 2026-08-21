@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "PetOS main overlay capability",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "sql:default"]
 }

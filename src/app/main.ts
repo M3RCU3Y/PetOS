@@ -1,6 +1,6 @@
 import { Pet } from "../core/pet.js";
 import { PetOSSimulation, type DesktopFrame } from "../core/simulation.js";
-import { BrowserPersistence, DEFAULT_SETTINGS } from "../core/persistence.js";
+import { BrowserPersistence, DEFAULT_SETTINGS, APP_VERSION, isUpdateAvailable } from "../core/persistence.js";
 import type { PetAppearance, PetOSSettings, Rect, WorldObject } from "../core/types.js";
 import type { PetPack } from "../core/packs.js";
 import { createDesktopBridge } from "./bridge.js";
@@ -14,6 +14,7 @@ import { ThoughtBubbles, generateThought } from "./thoughts.js";
 import { weatherFor, eventFor, weatherEffect, type WeatherKind } from "../core/weather.js";
 import { createCortex } from "../core/cortex.js";
 import { applyPrivacy } from "../core/privacy.js";
+import { openPetosDb, loadStateFromDb, saveStateToDb, appendNewEvents, type SqlDatabase } from "./sqlbridge.js";
 import { PhotographyMode } from "./photography.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
@@ -76,6 +77,30 @@ let draggingObject:WorldObject|null=null;
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
+let sqlDb:SqlDatabase|null=null;
+let eventWatermarks:Record<string,number>={};
+if(bridge.native){
+  void (async()=>{
+    sqlDb=await openPetosDb();
+    if(sqlDb){
+      const dbState=await loadStateFromDb(sqlDb);
+      if(dbState&&dbState.pets.length&&!loaded?.pets.length){
+        settings={...DEFAULT_SETTINGS,...dbState.settings};
+        for(const rec of dbState.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}
+        for(const obj of dbState.objects)sim.addObject(obj);
+      }
+      if(dbState){
+        eventWatermarks=Object.fromEntries(dbState.pets.map((r:{save:{state:{id:string};memories:{atMs:number}[]}})=>[r.save.state.id,Math.max(0,...r.save.memories.map((m:{atMs:number})=>m.atMs))]));
+      }
+      await sqlBridgeLog("info",`SQLite ready — ${sim.pets.size} pet(s) in memory`);
+    }else{
+      await sqlBridgeLog("warn","SQLite unavailable; JSON store remains the only backend");
+    }
+  })();
+}
+async function sqlBridgeLog(level:string,message:string):Promise<void>{
+  try{await bridge.logEvent(level,message);}catch{}
+}
 if(sim.pets.size===0){
   void showOnboarding(document.body).then(result=>{
     const spawn={x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height-60};
@@ -97,6 +122,23 @@ const ui=new SettingsUI({
   onCortexConfig(provider,apiKey,model){settings.cortexProvider=provider;settings.cortexApiKey=apiKey;settings.cortexModel=model;cortex=createCortex(provider,{apiKey,model});persist();},
   onToggleAutostart(enabled){settings.autostart=enabled;void bridge.setAutostart(enabled);persist();},
   onFocusConfig(enabled,workMinutes,breakMinutes){settings.focusMode=enabled;settings.focusWorkMinutes=workMinutes;settings.focusBreakMinutes=breakMinutes;if(!enabled){focusPhase="idle";}persist();},
+  onUpdateManifestUrl(url){settings.updateManifestUrl=url;persist();},
+  async onCheckUpdates(){
+    const url=settings.updateManifestUrl;
+    if(!url)return{status:"error" as const,message:"Set a manifest URL first."};
+    try{
+      const res=await fetch(url,{signal:AbortSignal.timeout(8000)});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const manifest=await res.json();
+      const result=isUpdateAvailable(APP_VERSION,manifest);
+      void sqlBridgeLog("info",`Update check: latest=${result.latest||"?"} available=${result.available}`);
+      return result.available
+        ?{status:"available" as const,message:`Update available: v${result.latest}. ${result.notes}`.trim()}
+        :{status:"latest" as const,message:result.latest?`You are on the latest version (v${APP_VERSION}).`:"Manifest did not contain a valid semver version."};
+    }catch(err){
+      return{status:"error" as const,message:`Check failed: ${String(err).slice(0,120)}`};
+    }
+  },
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},
@@ -110,7 +152,22 @@ ui.setGallery(PhotographyMode.loadGallery());
 void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);void bridge.onSettingsRequested(()=>ui.open());
 
 function addPet(pack:PetPack,name:string):void{const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const init={id:crypto.randomUUID(),name,species:pack.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,...(pack.personality?{personality:pack.personality}:{})};const pet=new Pet(init);sim.addPet(pet,pack.appearance);persist();}
-function persist():void{persistence.save({version:1,pets:sim.records(),objects:sim.objects,settings});lastSave=performance.now();}
+function persist():void{
+  const state={version:1 as const,pets:sim.records(),objects:sim.objects,settings};
+  persistence.save(state);
+  lastSave=performance.now();
+  if(sqlDb){
+    void (async()=>{
+      try{
+        await saveStateToDb(sqlDb!,state);
+        eventWatermarks=await appendNewEvents(sqlDb!,state.pets,eventWatermarks);
+      }catch(err){
+        console.warn("PetOS SQLite write failed",err);
+        await sqlBridgeLog("error",`SQLite write failed: ${String(err).slice(0,200)}`);
+      }
+    })();
+  }
+}
 
 async function refreshNative(now:number):Promise<void>{if(now-lastNativePoll<100)return;lastNativePoll=now;try{lastNative=await bridge.snapshot();virtualBounds=boundsFromMonitors(lastNative.monitors);}catch(err){console.warn("PetOS desktop snapshot failed",err);}}
 function boundsFromMonitors(monitors:any[]):Rect{if(!monitors?.length)return{x:0,y:0,width:innerWidth,height:innerHeight};const x=Math.min(...monitors.map(m=>m.rect.x)),y=Math.min(...monitors.map(m=>m.rect.y)),r=Math.max(...monitors.map(m=>m.rect.x+m.rect.width)),b=Math.max(...monitors.map(m=>m.rect.y+m.rect.height));return{x,y,width:r-x,height:b-y};}

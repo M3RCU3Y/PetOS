@@ -1,7 +1,18 @@
 import type { PetOSSettings, PetRecord, WorldObject } from "./types.js";
 
 export interface PersistedAppState { version:1; pets:PetRecord[]; objects:WorldObject[]; settings:PetOSSettings; }
-export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off",cortexApiKey:"",cortexModel:"",autostart:false,focusMode:false,focusWorkMinutes:25,focusBreakMinutes:5};
+export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off",cortexApiKey:"",cortexModel:"",autostart:false,focusMode:false,focusWorkMinutes:25,focusBreakMinutes:5,updateManifestUrl:""};
+export const APP_VERSION="0.2.0";
+
+/** Pure update-manifest comparison so it is unit-testable without network. */
+export function isUpdateAvailable(currentVersion:string,manifest:unknown):{available:boolean;latest:string;notes:string}{
+  const m=(manifest??{}) as {version?:unknown;notes?:unknown};
+  if(typeof m.version!=="string"||!/^\d+\.\d+\.\d+/.test(m.version))return{available:false,latest:"",notes:"manifest missing a semver 'version'"};
+  const pa=currentVersion.split(".").map(Number),pb=m.version.split(".").map(Number);
+  let newer=false;
+  for(let i=0;i<3;i++){const a=pa[i]??0,b=pb[i]??0;if(b>a){newer=true;break;}if(a>b)break;}
+  return{available:newer,latest:m.version,notes:typeof m.notes==="string"?m.notes:""};
+}
 
 const CURRENT_VERSION = 1;
 
@@ -29,7 +40,8 @@ function migrateSettings(raw: Partial<PetOSSettings> | undefined): PetOSSettings
     autostart: raw?.autostart ?? false,
     focusMode: raw?.focusMode ?? false,
     focusWorkMinutes: Number.isFinite(raw?.focusWorkMinutes) ? Math.max(1, Math.min(120, raw!.focusWorkMinutes!)) : 25,
-    focusBreakMinutes: Number.isFinite(raw?.focusBreakMinutes) ? Math.max(1, Math.min(60, raw!.focusBreakMinutes!)) : 5
+    focusBreakMinutes: Number.isFinite(raw?.focusBreakMinutes) ? Math.max(1, Math.min(60, raw!.focusBreakMinutes!)) : 5,
+    updateManifestUrl: typeof raw?.updateManifestUrl === "string" ? raw.updateManifestUrl : ""
   };
 }
 
