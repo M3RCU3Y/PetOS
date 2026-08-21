@@ -166,6 +166,10 @@ export interface PetState {
   ageSeconds: number;
   bond: number;
   lastInteractionMs: number;
+  frustration: number;
+  boredom: number;
+  novelty: number;
+  habitStrength: number;
   favoriteSurfaceId: string | null;
 }
 

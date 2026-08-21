@@ -45,12 +45,12 @@ export class PetBrain {
     add("stretch", d.fatigue*.08 + calm*.08, "body maintenance");
     add("idle", calm*.16 + p.patience*.09, "observe the environment");
     add("sit", calm*.13 + d.comfort*.1, "settle nearby");
-    add("walk", d.curiosity*.25 + p.curiosity*.16 + p.energy*.08, "low-cost exploration");
-    add("run", p.energy*.12 + a.arousal*.16 + d.play*.1, "high arousal movement");
+    add("walk", d.curiosity*.25 + p.curiosity*.16 + p.energy*.08 + state.boredom*.22, "low-cost exploration" + (state.boredom > .5 ? " (bored)" : ""));
+    add("run", p.energy*.12 + a.arousal*.16 + d.play*.1 + state.frustration*.14, "high arousal movement" + (state.frustration > .4 ? " (frustrated)" : ""));
 
     if (world.secondsSinceNewWindow < 8) {
       const newest = world.windows.at(-1);
-      add("investigate", d.curiosity*.5 + p.curiosity*.35, "a new desktop surface appeared", newest ? { id:`window:${newest.id}`, position:{x:newest.rect.x+newest.rect.width/2,y:newest.rect.y} } : undefined);
+      add("investigate", d.curiosity*.5 + p.curiosity*.35 + state.novelty*.15, "a new desktop surface appeared", newest ? { id:`window:${newest.id}`, position:{x:newest.rect.x+newest.rect.width/2,y:newest.rect.y} } : undefined);
     }
 
     if (world.cursor.distanceToPet < 280 && world.cursor.speed > 420) {
@@ -59,7 +59,7 @@ export class PetBrain {
       if (world.cursor.distanceToPet < 100) add("pounce", d.play*.35 + prey*.55, "cursor is within pouncing range", { position:world.cursor.position });
     }
 
-    add("seek_user", (d.social*.5 + p.affection*.28 + (1-p.independence)*.12) * keeper, keeper < 1 ? "Keeper suppresses interruption" : "social drive seeks user", { position:world.cursor.position });
+    add("seek_user", (d.social*.5 + p.affection*.28 + (1-p.independence)*.12 + state.frustration*.18) * keeper, keeper < 1 ? "Keeper suppresses interruption" : "social drive seeks user", { position:world.cursor.position });
 
     if (d.play > .72 && d.fatigue < .45 && p.energy > .5) add("zoomies", d.play*.35 + p.energy*.35 + a.arousal*.18 + eveningCatBurst, "stored play energy erupts into zoomies");
 
