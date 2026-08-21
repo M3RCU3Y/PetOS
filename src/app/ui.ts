@@ -1,4 +1,5 @@
 import { extractPalette } from "./photo.js";
+import type { DiaryEntry } from "../core/diary.js";
 import { computeSocialEdges, renderSocialGraph } from "./social.js";
 import { BrowserPersistence } from "../core/persistence.js";
 import { BUILTIN_PACKS, validatePack, type PetPack } from "../core/packs.js";
@@ -62,6 +63,12 @@ export class SettingsUI {
   open():void{this.panel.classList.add("open");this.backdrop.classList.add("open");}
   close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");}
   setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${p.species} · ${p.behavior}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));}
+  setDiary(entries:DiaryEntry[]):void{
+    const el=document.querySelector("#diary-list");
+    if(!el)return;
+    if(!entries.length){el.innerHTML="<p>Notable moments will appear here.</p>";return;}
+    el.innerHTML=entries.slice(-10).reverse().map(e=>`<div class="log-row"><span>${e.title}</span><small>${e.detail}</small></div>`).join("");
+  }
   setLifeLog(entries:{pet:string;atMs:number;note:string;kind:string}[]):void{
     if(!entries.length){this.lifeLog.innerHTML="<p>Your pets’ memorable moments will appear here.</p>";return;}
     this.lifeLog.innerHTML=entries.slice(-10).reverse().map(e=>`<div class="log-row"><span>${escapeHtml(e.pet)}</span><small>${escapeHtml(e.note)} · ${escapeHtml(e.kind)}</small></div>`).join("");

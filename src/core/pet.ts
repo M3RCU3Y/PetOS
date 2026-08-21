@@ -5,6 +5,7 @@ import { SeededRandom, type RandomSource } from "./rng.js";
 import { SPECIES, personalityFor } from "./species.js";
 import { ambientReaction } from "./ambient.js";
 import { RoutineManager } from "./routines.js";
+import { PetDiary } from "./diary.js";
 import type { Decision, EpisodicMemory, PetSave, PetState, Personality, Species, WorldSnapshot } from "./types.js";
 
 export interface PetInit { id:string; name:string; species:Species; nowMs:number; personality?:Partial<Personality>; x?:number; y?:number; }
@@ -14,6 +15,7 @@ export class Pet {
   state: PetState;
   private readonly brain: PetBrain;
   private readonly routines = new RoutineManager();
+  readonly diary = new PetDiary();
   private readonly rng: RandomSource;
   private lastRememberedBehavior: string;
 
@@ -60,7 +62,13 @@ export class Pet {
       this.state.body.target = decision.targetPosition ? {...decision.targetPosition} : null;
     } else if (decision.targetPosition) this.state.body.target = {...decision.targetPosition};
     this.state.ageSeconds += dt;
+    this.diary.trackBehavior(this.state.behavior,dtMs);
+    if(world.currentSurface)this.diary.trackSurface(world.currentSurface.id);
     this.updateCognition(world,dt);
+    if(Math.floor(this.state.ageSeconds)%30===0&&Math.floor(this.state.ageSeconds-dt)%30!==0){
+      const unlocked=this.diary.checkAchievements(this.state);
+      for(const ach of unlocked)this.remember({kind:"discovery",atMs:world.nowMs,valence:.9,salience:.8,note:ach.description});
+    }
     this.state.favoriteSurfaceId = this.memory.favoriteSurface();
     this.maybeRememberBehavior(world);
     return decision;
