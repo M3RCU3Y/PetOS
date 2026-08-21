@@ -34,3 +34,23 @@ test("factory returns heuristic when off and ollama provider when requested", ()
   assert.ok(createCortex("off") instanceof HeuristicCortex);
   assert.ok(createCortex("ollama") instanceof OllamaCortex);
 });
+
+test("intention parsing extracts valid JSON from noisy model output", async () => {
+  const { parseIntention } = await import("../dist/src/core/cortex.js");
+  const good = parseIntention('Sure! {"kind":"play","confidence":0.8,"note":"so much energy"} hope that helps');
+  assert.equal(good?.kind, "play");
+  assert.equal(good?.confidence, .8);
+  assert.ok(parseIntention("no json here at all") === null);
+  assert.ok(parseIntention('{"kind":"dance","confidence":1}') === null, "unknown kinds are rejected");
+  assert.ok(parseIntention(null) === null);
+});
+
+test("hosted providers without an API key fall back to heuristics immediately", async () => {
+  const { OpenAICompatibleCortex, GeminiCortex, AnthropicCortex } = await import("../dist/src/core/cortex.js");
+  const pet = new Pet({ id: "keyless", name: "Keyless", species: "cat", nowMs: 0 });
+  pet.state.drives.curiosity = .9;
+  for (const cortex of [new OpenAICompatibleCortex("openai", {}), new GeminiCortex({}), new AnthropicCortex({})]) {
+    const intent = await cortex.reflect(pet.state, calmDesktop(1000));
+    assert.equal(intent.kind, "explore", "no key must never hang or throw");
+  }
+});

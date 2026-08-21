@@ -70,7 +70,7 @@ interactions.setObjectFinder((x,y)=>{
 interactions.setRemoveObjectHandler(id=>{sim.removeObject(id);persist();});
 let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0;
 let draggingObject:WorldObject|null=null;
-let cortex=createCortex(settings.cortexProvider);
+let cortex=createCortex(settings.cortexProvider,{apiKey:settings.cortexApiKey,model:settings.cortexModel});
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
@@ -92,7 +92,7 @@ const ui=new SettingsUI({
   onToggleSound(enabled){settings.sound=enabled;sound.setEnabled(enabled);persist();},
   onSoundVolume(volume){settings.soundVolume=volume;sound.setVolume(volume);persist();},
   onToggleQuietHours(enabled){settings.quietHours=enabled;sound.setQuietHours(enabled);persist();},
-  onCortexProvider(provider){settings.cortexProvider=provider;cortex=createCortex(provider);persist();},
+  onCortexConfig(provider,apiKey,model){settings.cortexProvider=provider;settings.cortexApiKey=apiKey;settings.cortexModel=model;cortex=createCortex(provider,{apiKey,model});persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},

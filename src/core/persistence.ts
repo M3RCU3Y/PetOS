@@ -1,7 +1,7 @@
 import type { PetOSSettings, PetRecord, WorldObject } from "./types.js";
 
 export interface PersistedAppState { version:1; pets:PetRecord[]; objects:WorldObject[]; settings:PetOSSettings; }
-export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off"};
+export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off",cortexApiKey:"",cortexModel:""};
 
 const CURRENT_VERSION = 1;
 
@@ -23,7 +23,9 @@ function migrateSettings(raw: Partial<PetOSSettings> | undefined): PetOSSettings
     sound: raw?.sound ?? true,
     soundVolume: typeof raw?.soundVolume === "number" ? Math.max(0, Math.min(1, raw.soundVolume)) : .7,
     quietHours: raw?.quietHours ?? false,
-    cortexProvider: raw?.cortexProvider === "ollama" ? "ollama" : "off"
+    cortexProvider: ["ollama","openai","openrouter","gemini","anthropic"].includes(raw?.cortexProvider as string) ? raw!.cortexProvider as PetOSSettings["cortexProvider"] : "off",
+    cortexApiKey: typeof raw?.cortexApiKey === "string" ? raw.cortexApiKey : "",
+    cortexModel: typeof raw?.cortexModel === "string" ? raw.cortexModel : ""
   };
 }
 

@@ -244,5 +244,7 @@ export interface PetOSSettings {
   sound: boolean;
   soundVolume: number;
   quietHours: boolean;
-  cortexProvider: "off" | "ollama";
+  cortexProvider: "off" | "ollama" | "openai" | "openrouter" | "gemini" | "anthropic";
+  cortexApiKey: string;
+  cortexModel: string;
 }

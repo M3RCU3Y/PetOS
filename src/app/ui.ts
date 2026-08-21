@@ -21,7 +21,7 @@ export interface UIActions {
   onToggleSound(enabled:boolean):void;
   onSoundVolume(volume:number):void;
   onToggleQuietHours(enabled:boolean):void;
-  onCortexProvider(provider:"off"|"ollama"):void;
+  onCortexConfig(provider:"off"|"ollama"|"openai"|"openrouter"|"gemini"|"anthropic",apiKey:string,model:string):void;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -95,7 +95,16 @@ export class SettingsUI {
     const volume=document.querySelector<HTMLInputElement>("#sound-volume")!;volume.value=String(settings.soundVolume);volume.addEventListener("input",()=>this.actions.onSoundVolume(Number(volume.value)));
     const quiet=document.querySelector<HTMLInputElement>("#quiet-hours-toggle")!;quiet.checked=settings.quietHours;quiet.addEventListener("change",()=>this.actions.onToggleQuietHours(quiet.checked));
     const cortex=document.querySelector<HTMLSelectElement>("#cortex-provider");
-    if(cortex){cortex.value=settings.cortexProvider;cortex.addEventListener("change",()=>this.actions.onCortexProvider(cortex.value as "off"|"ollama"));}
+    if(cortex){
+      const keyInput=document.querySelector<HTMLInputElement>("#cortex-key")!,modelInput=document.querySelector<HTMLInputElement>("#cortex-model")!;
+      cortex.value=settings.cortexProvider;
+      keyInput.value=settings.cortexApiKey;modelInput.value=settings.cortexModel;
+      let debounce=0;
+      const emit=()=>{clearTimeout(debounce);debounce=setTimeout(()=>this.actions.onCortexConfig(cortex.value as "off"|"ollama"|"openai"|"openrouter"|"gemini"|"anthropic",keyInput.value.trim(),modelInput.value.trim()),400);} ;
+      cortex.addEventListener("change",emit);
+      keyInput.addEventListener("input",emit);
+      modelInput.addEventListener("input",emit);
+    }
     document.querySelector("#export-state")?.addEventListener("click",()=>this.actions.onExportState());
     document.querySelector("#import-state")?.addEventListener("click",()=>{document.querySelector<HTMLInputElement>("#import-file")?.click();});
     const importFile=document.querySelector<HTMLInputElement>("#import-file");
