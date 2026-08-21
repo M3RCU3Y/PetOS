@@ -28,8 +28,11 @@ export function surfacesFromDesktop(monitors: MonitorInfo[], windows: DesktopWin
     surfaces.push({ id: `window:${win.id}`, kind: "window", rect: win.rect, walkY: win.rect.y, title: win.title, app: win.app, comfort: .22 });
   }
   for (const obj of objects) {
-    if (obj.kind === "bed" || obj.kind === "box") {
+    if (obj.kind === "bed" || obj.kind === "box" || obj.kind === "tunnel") {
       surfaces.push({ id: `object:${obj.id}`, kind: "furniture", rect: { x: obj.position.x - obj.radius, y: obj.position.y - obj.radius, width: obj.radius * 2, height: obj.radius * 2 }, walkY: obj.position.y - obj.radius, comfort: obj.comfort ?? .8 });
+    } else if (obj.kind === "perch") {
+      const barY = obj.position.y - obj.radius * 1.7;
+      surfaces.push({ id: `object:${obj.id}`, kind: "furniture", rect: { x: obj.position.x - obj.radius * .7, y: barY, width: obj.radius * 1.4, height: 5 }, walkY: barY, comfort: obj.comfort ?? .55 });
     }
   }
   return surfaces.sort((a,b) => a.walkY - b.walkY);

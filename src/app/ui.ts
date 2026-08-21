@@ -8,7 +8,7 @@ import type { PetOSSettings, Species } from "../core/types.js";
 
 const SPECIES_DEFAULTS: Record<string, any> = Object.fromEntries(Object.entries(SPECIES).map(([k,v])=>[k,v.defaultPersonality]));
 
-type HabitatKind = "bed"|"ball"|"box"|"food"|"water"|"scratcher";
+type HabitatKind = "bed"|"ball"|"box"|"food"|"water"|"scratcher"|"plant"|"perch"|"tunnel";
 
 export interface UIActions {
   onToggleInteraction(enabled:boolean):void;

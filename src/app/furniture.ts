@@ -17,6 +17,9 @@ export const FURNITURE_TEMPLATES: FurnitureTemplate[] = [
   { kind: "food", label: "Food", emoji: "◒", radius: 18, contents: "food", description: "Reduces hunger" },
   { kind: "water", label: "Water", emoji: "◔", radius: 18, contents: "water", description: "Reduces thirst" },
   { kind: "scratcher", label: "Scratcher", emoji: "╫", radius: 25, description: "Cat territory maintenance" },
+  { kind: "plant", label: "Plant", emoji: "🌿", radius: 20, description: "Partial cover · calming greenery" },
+  { kind: "perch", label: "Perch", emoji: "🪵", radius: 16, description: "Bird rest spot · elevated bar" },
+  { kind: "tunnel", label: "Tunnel", emoji: "◠", radius: 30, comfort: .55, description: "Run-through · hide · cozy" }
 ];
 
 export class FurnitureEditor {

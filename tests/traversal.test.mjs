@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PetPhysics } from "../dist/src/core/physics.js";
 import { PetOSSimulation } from "../dist/src/core/simulation.js";
 import { Pet } from "../dist/src/core/pet.js";
-import { calmDesktop } from "../dist/src/core/world.js";
+import { calmDesktop, surfacesFromDesktop } from "../dist/src/core/world.js";
 
 test("bird has reduced gravity during glide", () => {
   const pet = new Pet({ id: "bird1", name: "Birdy", species: "bird", nowMs: 0 });
@@ -122,4 +122,29 @@ test("cats stalk a fast cursor at medium range instead of charging", () => {
   const decision = pet.tick(w, 100);
   const stalk = decision.allScores.find(s => s.behavior === "stalk");
   assert.ok(stalk, "medium-range prey should offer a stalk option");
+});
+
+test("tunnels and perches expose furniture affordances", () => {
+  const tunnelObj = { id: "t1", kind: "tunnel", position: { x: 300, y: 1040 }, radius: 30 };
+  const perchObj = { id: "p1", kind: "perch", position: { x: 800, y: 1040 }, radius: 16 };
+  const surfaces = surfacesFromDesktop([], [], [tunnelObj, perchObj]);
+  const tunnelSurface = surfaces.find(s => s.id === "object:t1");
+  const perchSurface = surfaces.find(s => s.id === "object:p1");
+  assert.ok(tunnelSurface, "tunnels are walkable furniture");
+  assert.ok(Math.abs(perchSurface.walkY - (1040 - 16 * 1.7)) < 1, "perch bar sits above its stand");
+});
+
+test("stressed rabbits hide in tunnels; birds claim perches", () => {
+  const rabbit = new Pet({ id: "scared", name: "Scared", species: "rabbit", nowMs: 0 }, undefined);
+  rabbit.state.affect.stress = .8;
+  rabbit.state.personality.boldness = .2;
+  rabbit.state.behaviorSinceMs = -30_000;
+  const w = calmDesktop(10_000);
+  w.objects = [{ id: "tun", kind: "tunnel", position: { x: 400, y: 1040 }, radius: 30 }];
+  assert.ok(rabbit.tick(w, 16).allScores.some(s => s.behavior === "hide"), "rabbit should consider hiding in a tunnel");
+
+  const bird = new Pet({ id: "percher", name: "Perchy", species: "bird", nowMs: 0 }, undefined);
+  bird.state.behaviorSinceMs = -30_000;
+  w.objects = [{ id: "perc", kind: "perch", position: { x: 700, y: 1040 }, radius: 16 }];
+  assert.ok(bird.tick(w, 16).allScores.some(s => s.reason.includes("proper perch")), "bird should value a perch object");
 });

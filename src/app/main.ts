@@ -60,7 +60,16 @@ interactions.setPetFinder((x,y)=>{
   for(const pet of [...sim.pets.values()].reverse()){if(renderer.hitTest(pet.state,point,virtualBounds))return pet.state;}
   return null;
 });
+interactions.setObjectFinder((x,y)=>{
+  const point={x:x+virtualBounds.x,y:y+virtualBounds.y};
+  for(const obj of [...sim.objects].reverse()){
+    if(Math.hypot(obj.position.x-point.x,obj.position.y-point.y)<=obj.radius+8)return obj;
+  }
+  return null;
+});
+interactions.setRemoveObjectHandler(id=>{sim.removeObject(id);persist();});
 let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0;
+let draggingObject:WorldObject|null=null;
 let cortex=createCortex(settings.cortexProvider);
 
 const loaded=persistence.load();
@@ -78,7 +87,7 @@ const ui=new SettingsUI({
   onToggleDebug(enabled){settings.debug=enabled;persist();},
   onToggleEnabled(enabled){settings.enabled=enabled;running=enabled;void bridge.setOverlayVisible(enabled);persist();},
   onAddPet(pack,name){addPet(pack,name);},onRemovePet(id){sim.removePet(id);persist();},
-  onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const objectKind=kind==="food"||kind==="water"?"bowl":kind;const radius=kind==="bed"?38:kind==="box"?34:kind==="scratcher"?25:kind==="ball"?11:18;sim.addObject({id:crypto.randomUUID(),kind:objectKind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{}),...((kind==="food"||kind==="water")?{contents:kind}:{})});persist();},
+  onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const objectKind=kind==="food"||kind==="water"?"bowl":kind;const radius=kind==="bed"?38:kind==="box"?34:kind==="tunnel"?30:kind==="scratcher"?25:kind==="plant"?20:kind==="perch"?16:kind==="ball"?11:18;sim.addObject({id:crypto.randomUUID(),kind:objectKind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{}),...(kind==="tunnel"?{comfort:.55}:{}),...((kind==="food"||kind==="water")?{contents:kind}:{})});persist();},
   onPrivacyLevel(level){settings.privacyLevel=level;persist();},
   onToggleSound(enabled){settings.sound=enabled;sound.setEnabled(enabled);persist();},
   onSoundVolume(volume){settings.soundVolume=volume;sound.setVolume(volume);persist();},
@@ -150,8 +159,14 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 
-canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));if(!pet)return;dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;pet.receivePickup({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:worldX,y:worldY},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true});canvas.setPointerCapture(e.pointerId);});
-canvas.addEventListener("pointermove",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
-canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
+canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));
+  if(!pet){const worldPoint={x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y};draggingObject=[...sim.objects].reverse().find(o=>Math.hypot(o.position.x-worldPoint.x,o.position.y-worldPoint.y)<=o.radius+8)??null;if(draggingObject){canvas.setPointerCapture(e.pointerId);}return;}
+  dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;pet.receivePickup({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:worldX,y:worldY},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true});canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener("pointermove",e=>{
+  if(draggingObject){draggingObject.position={x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y};return;}
+  if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
+canvas.addEventListener("pointerup",e=>{
+  if(draggingObject){draggingObject=null;canvas.releasePointerCapture(e.pointerId);persist();return;}
+  if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
 window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.ctrlKey&&e.shiftKey&&e.code==="KeyL")interactions.toggleLaser();if(e.code==="Escape")ui.close();});

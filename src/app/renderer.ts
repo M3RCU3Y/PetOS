@@ -604,6 +604,27 @@ export class PixelRenderer {
       c.fillStyle="#805a3e";c.fillRect(p.x-4,p.y-o.radius*2,8,o.radius*2);
       c.fillStyle="#a67a54";c.fillRect(p.x-o.radius,p.y-5,o.radius*2,7);
       c.fillRect(p.x-10,p.y-o.radius*2,20,5);
+    }else if(o.kind==="plant"){
+      c.fillStyle="#8b6036";
+      c.beginPath();c.moveTo(p.x-o.radius*.6,p.y);c.lineTo(p.x+o.radius*.6,p.y);c.lineTo(p.x+o.radius*.42,p.y-o.radius*.7);c.lineTo(p.x-o.radius*.42,p.y-o.radius*.7);c.closePath();c.fill();
+      c.fillStyle="#3f7d4c";
+      c.beginPath();c.ellipse(p.x-o.radius*.35,p.y-o.radius*1.15,o.radius*.34,o.radius*.6,-.5,0,TAU);c.fill();
+      c.beginPath();c.ellipse(p.x+o.radius*.35,p.y-o.radius*1.15,o.radius*.34,o.radius*.6,.5,0,TAU);c.fill();
+      c.fillStyle="#4f9d5f";
+      c.beginPath();c.ellipse(p.x,p.y-o.radius*1.4,o.radius*.26,o.radius*.55,0,0,TAU);c.fill();
+    }else if(o.kind==="perch"){
+      c.fillStyle="#7a5b3e";c.fillRect(p.x-2.5,p.y-o.radius*1.7,5,o.radius*1.7);
+      c.fillRect(p.x-o.radius*.7,p.y-4,o.radius*1.4,4);
+      c.fillStyle="#9a7448";
+      c.fillRect(p.x-o.radius*.7,p.y-o.radius*1.75,o.radius*1.4,5);
+      c.fillStyle="#6b4e33";c.fillRect(p.x-o.radius*.7,p.y-o.radius*1.75,o.radius*1.4,1.5);
+    }else if(o.kind==="tunnel"){
+      c.fillStyle="#5e7d9a";
+      c.beginPath();c.arc(p.x,p.y,o.radius,Math.PI,0);c.closePath();c.fill();
+      c.fillStyle="#2c3944";
+      c.beginPath();c.arc(p.x,p.y,o.radius*.72,Math.PI,0);c.closePath();c.fill();
+      c.strokeStyle="#48607a";c.lineWidth=3;
+      c.beginPath();c.arc(p.x,p.y,o.radius,Math.PI,0);c.stroke();
     }else{
       c.fillStyle="#888";c.beginPath();c.arc(p.x,p.y,o.radius,0,TAU);c.fill();
     }

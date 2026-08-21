@@ -9,7 +9,7 @@ export type Behavior =
 
 export type UserActivity = "idle" | "active" | "typing" | "media" | "gaming" | "fullscreen" | "presentation";
 export type SurfaceKind = "taskbar" | "window" | "monitor_floor" | "furniture";
-export type ObjectKind = "bed" | "ball" | "box" | "bowl" | "scratcher" | "toy";
+export type ObjectKind = "bed" | "ball" | "box" | "bowl" | "scratcher" | "toy" | "plant" | "perch" | "tunnel";
 
 export interface Vec2 { x: number; y: number; }
 export interface Rect { x: number; y: number; width: number; height: number; }

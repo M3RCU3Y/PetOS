@@ -1,4 +1,4 @@
-import type { PetState, Vec2 } from "../core/types.js";
+import type { PetState, Vec2, WorldObject } from "../core/types.js";
 
 export type InteractionKind = "pet" | "feed" | "call" | "laser" | "wake" | "brush";
 
@@ -13,6 +13,8 @@ export class InteractionManager {
   private laserActive = false;
   private laserPosition: Vec2 = { x: 0, y: 0 };
   private laserElement: HTMLElement | null = null;
+  private objectFinder: ((x: number, y: number) => WorldObject | null) | null = null;
+  private onRemoveObject: ((id: string) => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -27,11 +29,31 @@ export class InteractionManager {
     });
   }
 
+  setObjectFinder(fn: (x: number, y: number) => WorldObject | null): void { this.objectFinder = fn; }
+  setRemoveObjectHandler(fn: (id: string) => void): void { this.onRemoveObject = fn; }
+
   private showMenu(e: MouseEvent): void {
     e.preventDefault();
     this.hideMenu();
     const pet = this.findPetAt(e.clientX, e.clientY);
-    if (!pet) return;
+    if (!pet) {
+      const obj = this.objectFinder?.(e.clientX, e.clientY);
+      if (obj && this.onRemoveObject) {
+        this.menu = document.createElement("div");
+        this.menu.className = "interaction-menu";
+        this.menu.innerHTML = `<button data-action="remove">Remove ${obj.kind}</button>`;
+        this.menu.style.left = `${e.clientX}px`;
+        this.menu.style.top = `${e.clientY}px`;
+        document.body.append(this.menu);
+        this.menu.querySelectorAll<HTMLButtonElement>("button").forEach(btn => {
+          btn.addEventListener("click", () => {
+            this.onRemoveObject?.(obj.id);
+            this.hideMenu();
+          });
+        });
+      }
+      return;
+    }
     this.menu = document.createElement("div");
     this.menu.className = "interaction-menu";
     this.menu.innerHTML = `

@@ -158,8 +158,10 @@ export class PetBrain {
         add("sleep", d.fatigue*.96 + (bed.comfort ?? .7)*.25, "comfortable bed available", {id:bed.id,position:bed.position});
       }
     }
-    const box = world.objects.find(o => o.kind === "box");
-    if (box && (a.stress > .55 || (state.species === "cat" && p.curiosity > .6))) add("hide", a.stress*.45 + p.curiosity*.15, "safe enclosed space available", {id:box.id,position:box.position});
+    const hidey = world.objects.find(o => o.kind === "box" || o.kind === "tunnel" || o.kind === "plant");
+    if (hidey && (a.stress > .55 || (state.species === "cat" && p.curiosity > .6) || (state.species === "rabbit" && a.stress > .45))) add("hide", a.stress*.45 + p.curiosity*.15, "safe enclosed space available", {id:hidey.id,position:hidey.position});
+    const perchObj = world.objects.find(o => o.kind === "perch");
+    if (perchObj && state.species === "bird") add("perch", d.comfort*.16 + p.curiosity*.14 + .1, "a proper perch to rest on", {id:perchObj.id,position:perchObj.position});
     if (a.stress > .4 && d.fatigue < .7) {
       const cozy = [...world.objects].filter(o=>o.kind==="bed").sort((x,y)=>(y.comfort??0)-(x.comfort??0))[0];
       const comfySurface = [...world.surfaces].filter(s=>(s.comfort??.2)>.5).sort((x,y)=>(y.comfort??0)-(x.comfort??0))[0];
