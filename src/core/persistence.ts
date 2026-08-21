@@ -1,7 +1,7 @@
 import type { PetOSSettings, PetRecord, WorldObject } from "./types.js";
 
 export interface PersistedAppState { version:1; pets:PetRecord[]; objects:WorldObject[]; settings:PetOSSettings; }
-export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off",cortexApiKey:"",cortexModel:"",autostart:false};
+export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false,cortexProvider:"off",cortexApiKey:"",cortexModel:"",autostart:false,focusMode:false,focusWorkMinutes:25,focusBreakMinutes:5};
 
 const CURRENT_VERSION = 1;
 
@@ -26,7 +26,10 @@ function migrateSettings(raw: Partial<PetOSSettings> | undefined): PetOSSettings
     cortexProvider: ["ollama","openai","openrouter","gemini","anthropic"].includes(raw?.cortexProvider as string) ? raw!.cortexProvider as PetOSSettings["cortexProvider"] : "off",
     cortexApiKey: typeof raw?.cortexApiKey === "string" ? raw.cortexApiKey : "",
     cortexModel: typeof raw?.cortexModel === "string" ? raw.cortexModel : "",
-    autostart: raw?.autostart ?? false
+    autostart: raw?.autostart ?? false,
+    focusMode: raw?.focusMode ?? false,
+    focusWorkMinutes: Number.isFinite(raw?.focusWorkMinutes) ? Math.max(1, Math.min(120, raw!.focusWorkMinutes!)) : 25,
+    focusBreakMinutes: Number.isFinite(raw?.focusBreakMinutes) ? Math.max(1, Math.min(60, raw!.focusBreakMinutes!)) : 5
   };
 }
 

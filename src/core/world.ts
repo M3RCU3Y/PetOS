@@ -91,6 +91,6 @@ export function calmDesktop(nowMs = 0): WorldSnapshot {
     cursor:{position:{x:960,y:520},speed:0,distanceToPet:500,buttons:0},
     surfaces, objects:[], nearbyPets:[], windows:[], monitors:[monitor], foregroundApp:null,
     secondsSinceNewWindow:999, currentSurface:surfaces[0] ?? null, interactionMode:false,
-    idleSeconds:0, locked:false, batteryLevel:null, charging:true
+    idleSeconds:0, locked:false, batteryLevel:null, charging:true, focusBreak:false
   };
 }

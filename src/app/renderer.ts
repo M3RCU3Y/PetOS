@@ -1,7 +1,8 @@
 import { SPECIES } from "../core/species.js";
+import type { WeatherKind } from "../core/weather.js";
 import type { Behavior, PetAppearance, PetState, Rect, SheetAnimation, Species, SpriteSheet, Vec2, WorldObject } from "../core/types.js";
 
-export interface RenderScene { pets:PetState[]; appearances:Map<string,PetAppearance>; objects:WorldObject[]; debug:boolean; decisions:Record<string,{behavior:string;reason:string;score:number}>; virtualBounds:Rect; cursor?:Vec2; }
+export interface RenderScene { pets:PetState[]; appearances:Map<string,PetAppearance>; objects:WorldObject[]; debug:boolean; decisions:Record<string,{behavior:string;reason:string;score:number}>; virtualBounds:Rect; cursor?:Vec2; weather?:WeatherKind; reducedMotion?:boolean; }
 
 interface Pose {
   lying:boolean; sitting:boolean; vertical:boolean; hanging:boolean; peeking:boolean;
@@ -34,12 +35,13 @@ function hash01(id:string):number{let h=2166136261;for(const c of id){h^=c.charC
 
 /* ---------- pose ---------- */
 
-function computePose(p:PetState,t:number,phase:number,cursor?:Vec2):Pose{
+function computePose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMotion=false):Pose{
   const b=p.behavior;
   const speed=Math.abs(p.body.velocity.x);
   const fast=speed>110,walking=speed>8&&!fast;
   const airborne=!p.body.grounded;
   const sleeping=b==="sleep"||b==="cuddle";
+  const motionScale=reducedMotion?.4:1;
 
   let eyeOpen=sleeping?0:((t/3400+phase/997)%1)>.96?.08:1;
   if(b==="startle")eyeOpen=1;
@@ -78,12 +80,12 @@ function computePose(p:PetState,t:number,phase:number,cursor?:Vec2):Pose{
     tailWagAmp:happy?8:p.affect.valence>.35?5:3,
     tailFast:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:140),
-    legAmp:airborne?0:fast?4:walking?3:0,
-    bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0),
-    flap:p.species==="bird"?(airborne?Math.sin(t/70):(b==="zoomies"?Math.sin(t/160)*.5:Math.sin(t/300)*.15)):0,
+    legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,
+    bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0)*motionScale,
+    flap:p.species==="bird"?(airborne?Math.sin(t/70)*motionScale:(b==="zoomies"?Math.sin(t/160)*.5:Math.sin(t/300)*.15)):0,
     preen:b==="groom"&&p.species==="bird"&&Math.sin(t/700)>.3,
     zzz:sleeping,
-    speedLines:fast&&!airborne&&(b==="zoomies"||speed>150),
+    speedLines:reducedMotion?false:(fast&&!airborne&&(b==="zoomies"||speed>150)),
     puff:b==="startle",
     carry:b==="carry_toy",
     pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0)
@@ -413,8 +415,8 @@ function drawSheetFrame(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,t:
 interface LandingInfo { at:number; vy:number }
 
 /** Full pet painter: transform, squash/stretch, sheet-or-procedural body. */
-function paintPetInto(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,landing:LandingInfo|null,cursor?:Vec2):void{
-  const pose=computePose(p,t,hash01(p.id)*10000,cursor);
+function paintPetInto(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,landing:LandingInfo|null,cursor?:Vec2,reducedMotion=false):void{
+  const pose=computePose(p,t,hash01(p.id)*10000,cursor,reducedMotion);
 
   let sy=1,sx=1;
   if(!p.body.grounded){sy=Math.min(1.16,1+Math.abs(p.body.velocity.y)*.00045);sx=Math.pow(sy,-.7);}
@@ -428,6 +430,60 @@ function paintPetInto(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:
   if(drawSheetFrame(c,p,a,t)){c.restore();return;}
   if(p.species==="bird")drawBird(c,p,a,pose,t);
   else drawMammal(c,p,a,pose,t,SHAPES[p.species]!);
+  c.restore();
+}
+
+/* ---------- weather ---------- */
+
+const WEATHER_PARTICLES=90;
+
+/** Gentle ambient weather over the desktop. Deterministic per time slice; no state kept. */
+function drawWeather(c:CanvasRenderingContext2D,weather:WeatherKind,t:number,reducedMotion:boolean,bounds:Rect):void{
+  const W=bounds.width,H=bounds.height;
+  if(weather==="clear")return;
+  c.save();
+  if(weather==="cloudy"||weather==="stormy"){
+    c.fillStyle="rgba(40,50,70,.10)";
+    for(let i=0;i<6;i++){
+      const cx=((hash01(`cloud${i}`)*1.7*W)+(reducedMotion?t*.004:t*.014))%(W+420)-210;
+      const cy=40+hash01(`cloudy${i}`)*H*.3;
+      const r=60+hash01(`cloudr${i}`)*80;
+      c.beginPath();c.ellipse(cx,cy,r,r*.38,0,0,TAU);c.fill();
+    }
+  }
+  if(weather==="rainy"||weather==="stormy"){
+    const count=reducedMotion?30:WEATHER_PARTICLES;
+    c.strokeStyle="rgba(150,180,220,.34)";c.lineWidth=1.4;c.lineCap="round";
+    const speed=reducedMotion?120:520;
+    c.beginPath();
+    for(let i=0;i<count;i++){
+      const px=hash01(`rx${i}`)*(W+160)-80+((t*(.02+hash01(`rd${i}`)*.03))%40);
+      const cycle=(t*.001*speed/16+hash01(`ro${i}`)*H)%H;
+      const py=cycle;
+      c.moveTo(px,py);c.lineTo(px-4,py+13);
+    }
+    c.stroke();
+  }
+  if(weather==="snowy"){
+    const count=reducedMotion?24:70;
+    c.fillStyle="rgba(240,246,255,.8)";
+    for(let i=0;i<count;i++){
+      const drift=Math.sin(t/1400+i)*22*(reducedMotion?.3:1);
+      const cycle=((t*.00004*(30+hash01(`sv${i}`)*40))+hash01(`so${i}`))%1;
+      const px=(hash01(`sx${i}`)*W+drift+W)%W;
+      const py=cycle*H;
+      const r=1.4+hash01(`sr${i}`)*2.2;
+      c.beginPath();c.arc(px,py,r,0,TAU);c.fill();
+    }
+  }
+  if(weather==="stormy"&&!reducedMotion){
+    // Rare, brief lightning flicker
+    const flashPhase=(t%9000);
+    if(flashPhase<140){
+      c.fillStyle=`rgba(230,238,255,${.28*(1-flashPhase/140)})`;
+      c.fillRect(0,0,W,H);
+    }
+  }
   c.restore();
 }
 
@@ -488,6 +544,7 @@ export class PixelRenderer {
   render(scene:RenderScene):void{
     const c=this.ctx;c.clearRect(0,0,innerWidth,innerHeight);
     const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y;
+    if(scene.weather)drawWeather(c,scene.weather,performance.now(),scene.reducedMotion===true,scene.virtualBounds);
     this.lastAppearances=new Map(scene.appearances);
     for(const object of scene.objects)this.drawObject(object,{x:object.position.x+ox,y:object.position.y+oy});
     const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);
@@ -520,7 +577,7 @@ export class PixelRenderer {
         }
         c.globalAlpha=1;
       }
-      paintPetInto(c,pet,app,pos,t,this.landing.get(pet.id)??null,cursorScreen);
+      paintPetInto(c,pet,app,pos,t,this.landing.get(pet.id)??null,cursorScreen,scene.reducedMotion===true);
 
       if(pose.zzz){
         c.textAlign="left";

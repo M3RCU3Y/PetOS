@@ -25,6 +25,7 @@ export interface UIActions {
   onToggleQuietHours(enabled:boolean):void;
   onCortexConfig(provider:"off"|"ollama"|"openai"|"openrouter"|"gemini"|"anthropic",apiKey:string,model:string):void;
   onToggleAutostart(enabled:boolean):void;
+  onFocusConfig(enabled:boolean,workMinutes:number,breakMinutes:number):void;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -93,6 +94,13 @@ export class SettingsUI {
     this.updateSocialGraph(pets);
   }
   setRelationships(relationships:Record<string,Record<string,number>>):void{this.relationshipsData=relationships;}
+  setFocusStatus(phase:"idle"|"work"|"break",remainingSeconds:number):void{
+    const el=document.querySelector("#focus-status");
+    if(!el)return;
+    if(phase==="idle"){el.textContent="Not running.";return;}
+    const m=Math.floor(remainingSeconds/60),s=remainingSeconds%60;
+    el.textContent=phase==="work"?`Working — pets are resting quietly. ${m}:${String(s).padStart(2,"0")} until break.`:`Break time! Your pets are coming over. ${m}:${String(s).padStart(2,"0")}`;
+  }
   setDiary(entries:DiaryEntry[]):void{
     const el=document.querySelector("#diary-list");
     if(!el)return;
@@ -116,6 +124,16 @@ export class SettingsUI {
     const quiet=document.querySelector<HTMLInputElement>("#quiet-hours-toggle")!;quiet.checked=settings.quietHours;quiet.addEventListener("change",()=>this.actions.onToggleQuietHours(quiet.checked));
     const autostart=document.querySelector<HTMLInputElement>("#autostart-toggle")!;
     if(autostart){autostart.checked=settings.autostart;autostart.addEventListener("change",()=>this.actions.onToggleAutostart(autostart.checked));}
+    const focusToggle=document.querySelector<HTMLInputElement>("#focus-toggle")!;
+    const focusWork=document.querySelector<HTMLInputElement>("#focus-work")!;
+    const focusBreak=document.querySelector<HTMLInputElement>("#focus-break")!;
+    if(focusToggle&&focusWork&&focusBreak){
+      focusToggle.checked=settings.focusMode;
+      focusWork.value=String(settings.focusWorkMinutes);
+      focusBreak.value=String(settings.focusBreakMinutes);
+      const emit=()=>this.actions.onFocusConfig(focusToggle.checked,Math.max(1,Number(focusWork.value)||25),Math.max(1,Number(focusBreak.value)||5));
+      focusToggle.addEventListener("change",emit);focusWork.addEventListener("change",emit);focusBreak.addEventListener("change",emit);
+    }
     const cortex=document.querySelector<HTMLSelectElement>("#cortex-provider");
     if(cortex){
       const keyInput=document.querySelector<HTMLInputElement>("#cortex-key")!,modelInput=document.querySelector<HTMLInputElement>("#cortex-model")!;

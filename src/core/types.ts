@@ -126,6 +126,8 @@ export interface WorldSnapshot {
   locked: boolean;
   batteryLevel: number | null;
   charging: boolean;
+  /** True during a focus-companion break — pets may come sit with the keeper. */
+  focusBreak: boolean;
 }
 
 export interface DecisionScore {
@@ -248,4 +250,7 @@ export interface PetOSSettings {
   cortexApiKey: string;
   cortexModel: string;
   autostart: boolean;
+  focusMode: boolean;
+  focusWorkMinutes: number;
+  focusBreakMinutes: number;
 }

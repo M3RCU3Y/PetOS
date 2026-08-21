@@ -11,8 +11,9 @@ import { showOnboarding } from "./onboarding.js";
 import { InteractionManager, type InteractionTarget } from "./interaction.js";
 import { FurnitureEditor, FURNITURE_TEMPLATES, type FurnitureTemplate } from "./furniture.js";
 import { ThoughtBubbles, generateThought } from "./thoughts.js";
-import { weatherFor, eventFor, weatherEffect } from "../core/weather.js";
+import { weatherFor, eventFor, weatherEffect, type WeatherKind } from "../core/weather.js";
 import { createCortex } from "../core/cortex.js";
+import { applyPrivacy } from "../core/privacy.js";
 import { PhotographyMode } from "./photography.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
@@ -27,7 +28,7 @@ const prevBehaviors=new Map<string,string>();
 const interactions=new InteractionManager(canvas,(target)=>{
   const pet=sim.pets.get(target.petId);
   if(!pet)return;
-  const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true};
+  const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true,focusBreak:false};
   if(target.kind==="pet")pet.receivePetting(world,.6);
   else if(target.kind==="brush")pet.brush(world);
   else if(target.kind==="wake")pet.wakeUp(world);
@@ -68,9 +69,10 @@ interactions.setObjectFinder((x,y)=>{
   return null;
 });
 interactions.setRemoveObjectHandler(id=>{sim.removeObject(id);persist();});
-let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0;
-let draggingObject:WorldObject|null=null;
+let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0,lastRenderAt=0;
 let cortex=createCortex(settings.cortexProvider,{apiKey:settings.cortexApiKey,model:settings.cortexModel});
+let focusPhase:"idle"|"work"|"break"="idle",focusPhaseEndsAt=0,focusLastKey="";
+let draggingObject:WorldObject|null=null;
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
@@ -94,6 +96,7 @@ const ui=new SettingsUI({
   onToggleQuietHours(enabled){settings.quietHours=enabled;sound.setQuietHours(enabled);persist();},
   onCortexConfig(provider,apiKey,model){settings.cortexProvider=provider;settings.cortexApiKey=apiKey;settings.cortexModel=model;cortex=createCortex(provider,{apiKey,model});persist();},
   onToggleAutostart(enabled){settings.autostart=enabled;void bridge.setAutostart(enabled);persist();},
+  onFocusConfig(enabled,workMinutes,breakMinutes){settings.focusMode=enabled;settings.focusWorkMinutes=workMinutes;settings.focusBreakMinutes=breakMinutes;if(!enabled){focusPhase="idle";}persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},
@@ -133,7 +136,7 @@ const CORTEX_PHRASES:Record<string,string[]>={
 async function reflectCortex():Promise<void>{
   for(const pet of sim.pets.values()){
     try{
-      const world={nowMs:Date.now(),dtMs:16,userActivity:lastNative?.user_activity??"active",cursor:{position:lastNative?.cursor??{x:0,y:0},speed:0,distanceToPet:200,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:false,idleSeconds:lastNative?.idle_seconds??0,locked:lastNative?.locked??false,batteryLevel,charging:batteryCharging};
+      const world={nowMs:Date.now(),dtMs:16,userActivity:lastNative?.user_activity??"active",cursor:{position:lastNative?.cursor??{x:0,y:0},speed:0,distanceToPet:200,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:false,idleSeconds:lastNative?.idle_seconds??0,locked:lastNative?.locked??false,batteryLevel,charging:batteryCharging,focusBreak:focusPhase==="break"};
       const intention=await cortex.reflect(pet.state,world);
       if(intention.kind==="none"||intention.confidence<.55)continue;
       const phrases=[intention.note,...CORTEX_PHRASES[intention.kind]??[]];
@@ -142,13 +145,35 @@ async function reflectCortex():Promise<void>{
   }
 }
 
-async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled&&!document.hidden){
+function updateFocusTimer(now:number):void{
+  if(!settings.focusMode){focusPhase="idle";ui.setFocusStatus("idle",0);return;}
+  if(focusPhase==="idle"){focusPhase="work";focusPhaseEndsAt=now+settings.focusWorkMinutes*60_000;}
+  else if(now>=focusPhaseEndsAt){
+    focusPhase=focusPhase==="work"?"break":"work";
+    focusPhaseEndsAt=now+(focusPhase==="work"?settings.focusWorkMinutes:settings.focusBreakMinutes)*60_000;
+    if(focusPhase==="break"){
+      sound.playSpeciesVocal([...sim.pets.keys()][0]??"", [...sim.pets.values()][0]?.state.species??"cat");
+      for(const pet of sim.pets.values()){pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.08);pet.state.drives.social=Math.min(1,pet.state.drives.social+.2);}
+    }
+  }
+  const key=`${focusPhase}:${Math.ceil((focusPhaseEndsAt-now)/1000/30)}`;
+  if(key!==focusLastKey){focusLastKey=key;ui.setFocusStatus(focusPhase,Math.max(0,Math.round((focusPhaseEndsAt-now)/1000)));}
+}
+
+async function frame(now:number):Promise<void>{
+  const dt=Math.min(100,now-lastFrame);
+  lastFrame=now;
+  const minFrameMs=settings.maxFps===30?33:0;
+  if(now-lastRenderAt<minFrameMs){requestAnimationFrame(frame);return;}
+  lastRenderAt=now;
+  if(running&&settings.enabled&&!document.hidden){
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
       await refreshNative(now);if(lastNative){
         const activity:DesktopFrame["userActivity"]=lastNative.locked?"idle":mediaPlaying()&&lastNative.user_activity==="active"?"media":lastNative.user_activity;
         const laser=interactions.getLaser();
         const cursorPosition=laser.active&&laser.position?{x:laser.position.x+virtualBounds.x,y:laser.position.y+virtualBounds.y}:lastNative.cursor;
-        const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition,cursorSpeed:laser.active?900:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode,idleSeconds:lastNative.idle_seconds??0,locked:lastNative.locked??false,batteryLevel,charging:batteryCharging};
+        const privacy=applyPrivacy(settings.privacyLevel,{userActivity:activity,foregroundApp:lastNative.foreground_app,windows:lastNative.windows});
+        const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:privacy.windows,cursorPosition,cursorSpeed:laser.active?900:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:privacy.userActivity,foregroundApp:privacy.foregroundApp,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode,idleSeconds:lastNative.idle_seconds??0,locked:lastNative.locked??false,batteryLevel,charging:batteryCharging,focusBreak:focusPhase==="break"};
         const state=sim.tick(input);
       for(const pet of sim.pets.values()){const prev=prevBehaviors.get(pet.state.id);if(prev&&prev!==pet.state.behavior)sound.playBehaviorSound(pet.state.id,pet.state.species,pet.state.behavior);prevBehaviors.set(pet.state.id,pet.state.behavior);}
       const focusGuard=activity==="fullscreen"||activity==="gaming"||activity==="presentation";
@@ -157,19 +182,21 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
       thoughts.update(state.pets,virtualBounds.x,virtualBounds.y);
       if(now-lastSocialGraphUpdate>2500){lastSocialGraphUpdate=now;const relData:Record<string,Record<string,number>>={};for(const pet of sim.pets.values())relData[pet.state.id]=pet.memory.relationshipsSnapshot();ui.setRelationships(relData);}
       if(now-lastCortexReflect>30_000&&!lastNative?.locked){lastCortexReflect=now;void reflectCortex();}
-      renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));
+      updateFocusTimer(now);
+      const todayWeather=weatherFor(new Date());
+      renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor,weather:focusPhase==="break"?"clear":todayWeather,reducedMotion:settings.reducedMotion});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));
       ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 
 canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));
   if(!pet){const worldPoint={x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y};draggingObject=[...sim.objects].reverse().find(o=>Math.hypot(o.position.x-worldPoint.x,o.position.y-worldPoint.y)<=o.radius+8)??null;if(draggingObject){canvas.setPointerCapture(e.pointerId);}return;}
-  dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;pet.receivePickup({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:worldX,y:worldY},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true});canvas.setPointerCapture(e.pointerId);});
+  dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;pet.receivePickup({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:worldX,y:worldY},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true,focusBreak:false});canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener("pointermove",e=>{
   if(draggingObject){draggingObject.position={x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y};return;}
   if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
 canvas.addEventListener("pointerup",e=>{
   if(draggingObject){draggingObject=null;canvas.releasePointerCapture(e.pointerId);persist();return;}
-  if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
+  if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true,focusBreak:false},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
 window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.ctrlKey&&e.shiftKey&&e.code==="KeyL")interactions.toggleLaser();if(e.code==="Escape")ui.close();});

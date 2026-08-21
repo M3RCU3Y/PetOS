@@ -9,4 +9,5 @@ export * from "./core/physics.js";
 export * from "./core/simulation.js";
 export * from "./core/packs.js";
 export * from "./core/persistence.js";
+export * from "./core/privacy.js";
 export * from "./core/cortex.js";

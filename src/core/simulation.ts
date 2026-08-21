@@ -3,7 +3,7 @@ import { PetPhysics, nudgeToy } from "./physics.js";
 import { buildWorldForPet, surfacesFromDesktop } from "./world.js";
 import type { DesktopWindow, MonitorInfo, PetRecord, PetState, UserActivity, Vec2, WorldObject } from "./types.js";
 
-export interface DesktopFrame { nowMs:number; dtMs:number; monitors:MonitorInfo[]; windows:DesktopWindow[]; cursorPosition:Vec2; cursorSpeed:number; cursorButtons:number; userActivity:UserActivity; foregroundApp:string|null; secondsSinceNewWindow:number; interactionMode:boolean; idleSeconds:number; locked:boolean; batteryLevel:number|null; charging:boolean; }
+export interface DesktopFrame { nowMs:number; dtMs:number; monitors:MonitorInfo[]; windows:DesktopWindow[]; cursorPosition:Vec2; cursorSpeed:number; cursorButtons:number; userActivity:UserActivity; foregroundApp:string|null; secondsSinceNewWindow:number; interactionMode:boolean; idleSeconds:number; locked:boolean; batteryLevel:number|null; charging:boolean; focusBreak?:boolean; }
 export interface SimFrame { pets:PetState[]; objects:WorldObject[]; decisions:Record<string,{behavior:string;reason:string;score:number}>; }
 
 export class PetOSSimulation {
@@ -61,7 +61,7 @@ export class PetOSSimulation {
     this.previousSurfaces=new Map(surfaces.map(s=>[s.id,{x:s.rect.x,y:s.rect.y,walkY:s.walkY}]));
     const decisions:Record<string,{behavior:string;reason:string;score:number}>={};
     for(const pet of this.pets.values()){
-      const world=buildWorldForPet({nowMs:frame.nowMs,dtMs:frame.dtMs,userActivity:frame.userActivity,surfaces,objects:this.objects,windows:frame.windows,monitors:frame.monitors,foregroundApp:frame.foregroundApp,secondsSinceNewWindow:frame.secondsSinceNewWindow,interactionMode:frame.interactionMode,idleSeconds:frame.idleSeconds,locked:frame.locked,batteryLevel:frame.batteryLevel,charging:frame.charging,cursorPosition:frame.cursorPosition,cursorSpeed:frame.cursorSpeed,cursorButtons:frame.cursorButtons},pet.state,states);
+      const world=buildWorldForPet({nowMs:frame.nowMs,dtMs:frame.dtMs,userActivity:frame.userActivity,surfaces,objects:this.objects,windows:frame.windows,monitors:frame.monitors,foregroundApp:frame.foregroundApp,secondsSinceNewWindow:frame.secondsSinceNewWindow,interactionMode:frame.interactionMode,idleSeconds:frame.idleSeconds,locked:frame.locked,batteryLevel:frame.batteryLevel,charging:frame.charging,focusBreak:frame.focusBreak??false,cursorPosition:frame.cursorPosition,cursorSpeed:frame.cursorSpeed,cursorButtons:frame.cursorButtons},pet.state,states);
       for(const other of world.nearbyPets)other.relationship=pet.memory.relationshipWith(other.id);
       const d=pet.tick(world,frame.dtMs);decisions[pet.state.id]={behavior:d.behavior,reason:d.reason,score:d.score};
       this.physics.update(pet.state,world,frame.dtMs);

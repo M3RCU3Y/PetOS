@@ -71,6 +71,11 @@ export class PetBrain {
 
     add("seek_user", (d.social*.5 + p.affection*.28 + (1-p.independence)*.12 + state.frustration*.18) * keeper, keeper < 1 ? "Keeper suppresses interruption" : "social drive seeks user", { position:world.cursor.position });
 
+    if (world.focusBreak) {
+      add("seek_user", .3 + state.bond*.2 + d.social*.2, "break time — going to sit with the keeper", { position:world.cursor.position });
+      add("sit", .12, "keeping the keeper company on break");
+    }
+
     if (d.play > .72 && d.fatigue < .45 && p.energy > .5) add("zoomies", d.play*.35 + p.energy*.35 + a.arousal*.18 + eveningCatBurst, "stored play energy erupts into zoomies");
 
     const nearestPet = [...world.nearbyPets].sort((a,b)=>a.distance-b.distance)[0];
