@@ -14,6 +14,7 @@ export interface UIActions {
   onRemovePet(id:string):void;
   onAddObject(kind:HabitatKind):void;
   onPrivacyLevel(level:0|1|2|3):void;
+  onToggleSound(enabled:boolean):void;
   onImportPack(pack:PetPack):void;
   onReset():void;
   onCreateCustomPet(config:{species:Species;name:string;appearance:{coat:string;accent:string;eye:string;scale:number};personality:Record<string,number>}):void;
