@@ -1,4 +1,23 @@
-import type { PetAppearance, Personality, Species } from "./types.js";
+import type { MarkingPattern, PetAppearance, Personality, SheetAnimation, SpriteSheet, Species } from "./types.js";
+
+const MARKINGS:MarkingPattern[]=["uniform","tuxedo","tabby","patched"];
+
+function validateSheet(value:unknown):SpriteSheet|null{
+  if(!value||typeof value!=="object")return null;
+  const s=value as Partial<SpriteSheet>;
+  if(typeof s.src!=="string"||!s.src.trim())return null;
+  if(!Number.isFinite(s.frameWidth)||s.frameWidth!<1||!Number.isFinite(s.frameHeight)||s.frameHeight!<1)return null;
+  if(!s.default||typeof s.default.row!=="number"||s.default.row<0||typeof s.default.frames!=="number"||s.default.frames<1)return null;
+  const animations:Record<string,SheetAnimation>={};
+  if(s.animations&&typeof s.animations==="object"){
+    for(const [key,anim] of Object.entries(s.animations)){
+      const a=anim as SheetAnimation;
+      if(typeof a.row!=="number"||a.row<0||typeof a.frames!=="number"||a.frames<1)continue;
+      animations[key]={row:a.row,frames:a.frames,...(Number.isFinite(a.fps)&&a.fps!?{fps:a.fps}:{})};
+    }
+  }
+  return{src:s.src,frameWidth:s.frameWidth!,frameHeight:s.frameHeight!,...(Number.isFinite(s.fps)&&s.fps!?{fps:s.fps}:{}),default:{row:s.default.row,frames:s.default.frames,...(Number.isFinite(s.default.fps)&&s.default.fps!?{fps:s.default.fps}:{})},animations};
+}
 
 export interface PetPack { id:string;name:string;version:string;species:Species;author:string;description:string;appearance:PetAppearance;personality?:Partial<Personality>;tags:string[]; }
 
@@ -48,6 +67,14 @@ export function validatePackDetailed(value: unknown): PackValidationResult {
   if (typeof x.id !== "string" || !x.id.trim()) errors.push("Missing or empty 'id'");
   if (typeof x.name !== "string" || !x.name.trim()) errors.push("Missing or empty 'name'");
   if (!["cat", "dog", "rabbit", "bird"].includes(x.species ?? "")) errors.push(`Invalid species '${x.species}' — must be cat, dog, rabbit, or bird`);
+  let sheet: SpriteSheet | undefined;
+  if (x.appearance && "sheet" in x.appearance) {
+    const validated = validateSheet(x.appearance.sheet);
+    if (validated) sheet = validated;
+    else warnings.push("appearance.sheet is present but malformed — falling back to procedural art");
+  }
+  const markings = MARKINGS.includes(x.appearance?.markings as MarkingPattern) ? x.appearance!.markings : undefined;
+  if (x.appearance?.markings && !markings) warnings.push(`Unknown markings '${x.appearance.markings}' — must be uniform, tuxedo, tabby, or patched`);
   if (!x.appearance || typeof x.appearance.coat !== "string") errors.push("Missing appearance.coat");
   else if (!/^#[0-9a-fA-F]{6}$/.test(x.appearance.coat)) warnings.push("appearance.coat should be a hex color like #ff0000");
   if (!x.appearance || typeof x.appearance.accent !== "string") errors.push("Missing appearance.accent");
@@ -59,13 +86,14 @@ export function validatePackDetailed(value: unknown): PackValidationResult {
     }
   }
   if (errors.length) return { pack: null, errors, warnings };
+  const { sheet:_rawSheet, markings:_rawMarkings, ...cleanAppearance } = x.appearance!;
   return {
     pack: {
       id: x.id!, name: x.name!, version: x.version ?? "1.0.0",
       species: x.species as Species,
       author: x.author ?? "Community",
       description: x.description ?? "Custom PetOS pet pack",
-      appearance: { ...x.appearance!, scale: Number.isFinite(x.appearance!.scale) ? x.appearance!.scale : 1 },
+      appearance: { ...cleanAppearance, scale: Number.isFinite(cleanAppearance.scale) ? cleanAppearance.scale : 1, ...(sheet?{sheet}:{}), ...(markings?{markings}:{}) },
       ...(x.personality ? { personality: x.personality } : {}),
       tags: Array.isArray(x.tags) ? x.tags : []
     },

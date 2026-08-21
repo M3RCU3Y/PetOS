@@ -198,11 +198,31 @@ export interface PetSave {
   relationships: Record<string, number | Relationship>;
 }
 
+export type MarkingPattern = "uniform" | "tuxedo" | "tabby" | "patched";
+
+export interface SheetAnimation { row: number; frames: number; fps?: number; }
+
+/**
+ * Declarative sprite-sheet spec. A sheet is a horizontal strip of rows; each row is
+ * one animation loop of equally sized frames. Behaviors without a matching animation
+ * fall back through aliases to `default`.
+ */
+export interface SpriteSheet {
+  src: string;
+  frameWidth: number;
+  frameHeight: number;
+  fps?: number;
+  default: SheetAnimation;
+  animations: Record<string, SheetAnimation>;
+}
+
 export interface PetAppearance {
   coat: string;
   accent: string;
   eye: string;
   scale: number;
+  sheet?: SpriteSheet;
+  markings?: MarkingPattern;
 }
 
 export interface PetRecord {
