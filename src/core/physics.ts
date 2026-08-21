@@ -193,22 +193,35 @@ export class PetPhysics {
     });
     if(!targetSurface||targetSurface.id===currentSurface)return directTarget;
     const cached=this.routeCache.get(state.id);
-    if(cached&&cached.targetId===targetSurface.id)return this.advanceRoute(state,cached);
-    const graph=buildSurfaceGraph(world.surfaces,SPECIES[state.species].movement.jumpSpeed,220);
+    if(cached&&cached.targetId===targetSurface.id)return this.advanceRoute(state,cached,world.surfaces);
+    const graph=buildSurfaceGraph(world.surfaces,SPECIES[state.species].movement.jumpSpeed,220,SPECIES[state.species].climber===true);
     const route=planRoute(graph,currentSurface,targetSurface.id);
     if(!route.length)return directTarget;
     const entry={targetId:targetSurface.id,route,stepIndex:0};
     this.routeCache.set(state.id,entry);
-    return this.advanceRoute(state,entry);
+    return this.advanceRoute(state,entry,world.surfaces);
   }
 
-  private advanceRoute(state:PetState,entry:{targetId:string;route:PathEdge[];stepIndex:number}):Vec2|null{
+  private advanceRoute(state:PetState,entry:{targetId:string;route:PathEdge[];stepIndex:number},surfaces:Surface[]):Vec2|null{
     if(entry.stepIndex>=entry.route.length){this.routeCache.delete(state.id);return null;}
     const edge:PathEdge|undefined=entry.route[entry.stepIndex];
     if(!edge){this.routeCache.delete(state.id);return null;}
     const body=state.body;
     if(body.surfaceId===edge.from){
       if(Math.abs(body.position.x-edge.launchPoint.x)<16){
+        if(edge.kind==="climb"){
+          const target=surfaces.find(s=>s.id===edge.to);
+          if(target){
+            this.climbs.set(state.id,{winId:edge.to,x:edge.launchPoint.x,phase:"climb"});
+            body.grounded=false;body.surfaceId=null;
+            body.target={x:edge.landingPoint.x,y:target.walkY};
+            state.behavior="climb";
+            state.behaviorSinceMs=Date.now();
+            entry.stepIndex++;
+            if(entry.stepIndex>=entry.route.length)this.routeCache.delete(state.id);
+            return null;
+          }
+        }
         this.jump(state,edge.landingPoint);
         entry.stepIndex++;
         if(entry.stepIndex>=entry.route.length){this.routeCache.delete(state.id);return null;}

@@ -7,9 +7,12 @@ export interface PathEdge {
   cost: number;
   launchPoint: Vec2;
   landingPoint: Vec2;
+  kind: "jump" | "climb";
 }
 
 const HORIZONTAL_OVERLAP_MARGIN = 24;
+const CLIMB_MAX_RISE = 460;
+const CLIMB_REACH = 56;
 
 function horizontalGap(a: Surface, b: Surface): number {
   const aLeft = a.rect.x;
@@ -24,7 +27,7 @@ function edgeX(from: Surface, to: Surface): number {
   return clamp(to.rect.x + to.rect.width / 2, from.rect.x, from.rect.x + from.rect.width);
 }
 
-export function buildSurfaceGraph(surfaces: Surface[], maxJumpHeight: number, maxHorizontalGap: number): Map<string, PathEdge[]> {
+export function buildSurfaceGraph(surfaces: Surface[], maxJumpHeight: number, maxHorizontalGap: number, climber = false): Map<string, PathEdge[]> {
   const graph = new Map<string, PathEdge[]>();
   for (const s of surfaces) graph.set(s.id, []);
   for (let i = 0; i < surfaces.length; i++) {
@@ -34,7 +37,22 @@ export function buildSurfaceGraph(surfaces: Surface[], maxJumpHeight: number, ma
       const to: Surface = surfaces[j]!;
       const rise = from.walkY - to.walkY;
       const gap = horizontalGap(from, to);
-      if (rise > maxJumpHeight || rise < -maxJumpHeight * .6) continue;
+      if (rise > maxJumpHeight || rise < -maxJumpHeight * .6) {
+        // Too high to jump: a climber may scale the wall when the ledge is close by.
+        if (!(climber && rise > maxJumpHeight && rise <= CLIMB_MAX_RISE && gap < CLIMB_REACH)) continue;
+        const sideX = clamp(edgeX(from, to), from.rect.x, from.rect.x + from.rect.width);
+        const launchX = clamp(sideX, from.rect.x + 4, from.rect.x + from.rect.width - 4);
+        const landingX = clamp(launchX, to.rect.x + 2, to.rect.x + to.rect.width - 2);
+        graph.get(from.id)!.push({
+          from: from.id,
+          to: to.id,
+          cost: rise * 1.35 + 40,
+          launchPoint: { x: launchX, y: from.walkY },
+          landingPoint: { x: landingX, y: to.walkY },
+          kind: "climb"
+        });
+        continue;
+      }
       if (gap > maxHorizontalGap) continue;
       const launchX = edgeX(from, to);
       const landingX = clamp(launchX, to.rect.x, to.rect.x + to.rect.width);
@@ -44,7 +62,8 @@ export function buildSurfaceGraph(surfaces: Surface[], maxJumpHeight: number, ma
         to: to.id,
         cost,
         launchPoint: { x: launchX, y: from.walkY },
-        landingPoint: { x: landingX, y: to.walkY }
+        landingPoint: { x: landingX, y: to.walkY },
+        kind: "jump"
       });
     }
   }
