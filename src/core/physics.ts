@@ -11,10 +11,15 @@ export class PetPhysics {
     const body=state.body;
     if(body.held){body.velocity={x:0,y:0};return;}
     const target=this.resolveTarget(state,world);
+    const isBird=state.species==="bird";
+    const isRabbit=state.species==="rabbit";
     const routedTarget=this.resolveRoutedTarget(state,world,target);
     const behavior=state.behavior;
     const locomotion=["walk","investigate","seek_user","follow_pet","play_toy","play_pet","greet_pet","hide","perch","eat","drink","scratch"].includes(behavior);
     const fast=["run","chase_cursor","zoomies","pounce"].includes(behavior);
+    if(isRabbit&&(locomotion||fast)&&body.grounded&&Math.sin(world.nowMs/300)>0.7){
+      this.jump(state,target??undefined);
+    }
     if(target && (locomotion||fast)){
       const dx=target.x-body.position.x;
       const speed=fast?profile.runSpeed:profile.walkSpeed;
@@ -26,7 +31,14 @@ export class PetPhysics {
       body.velocity.x*=Math.pow(.03,dt);
     }
     if(behavior==="zoomies" && Math.abs(body.velocity.x)<20) body.velocity.x=body.facing*profile.runSpeed;
-    if(!body.grounded) body.velocity.y+=profile.gravity*dt;
+    if(!body.grounded){
+      if(isBird&&["perch","investigate","seek_user","follow_pet"].includes(behavior)&&body.velocity.y<0){
+        // Bird glides — reduced gravity while ascending toward perch
+        body.velocity.y+=profile.gravity*dt*.3;
+      } else {
+        body.velocity.y+=profile.gravity*dt;
+      }
+    }
     body.position.x+=body.velocity.x*dt;
     body.position.y+=body.velocity.y*dt;
     this.resolveCollisions(state,world.surfaces);
