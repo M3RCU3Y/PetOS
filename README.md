@@ -27,13 +27,18 @@ PetOS is not a random sprite wandering over your taskbar. Every pet has species 
 - Circadian weighting, so time of day subtly changes rest/play tendencies
 - In-app diary (achievements) and life log sourced from episodic memory
 - Persistent pets — memory, appearance, diary, routines and habits survive restarts — plus export/import backups
-- Built-in pet packs plus JSON community pack import with detailed validation and version compatibility
+- Built-in pet packs plus JSON community pack import with detailed validation, version compatibility and SHA-256 trust fingerprints
+- **Sprite-sheet pipeline**: packs can ship real art (`appearance.sheet`: strip image, frame size, per-behavior rows) with behavior alias resolution and graceful fallback to procedural art until sheets load
+- Real-pet recreation: photo import extracts coat/accent/eye palette **and classifies markings** (tuxedo / tabby / patched / uniform) rendered on the procedural pet
+- Live pet preview in the creator; local photo gallery of desktop snapshots
 - Pose-based pixel renderer: species-specific skeletons, walk/run cycles, tails, blinking, gaze tracking, squash & stretch, sleep Z's, startle marks, dust and speed lines
 - Interaction mode: pet, feed, brush, wake, call (personality decides if they bother), drag/toss, right-click menu, laser pointer (`Ctrl+Shift+L`)
 - Procedural sound engine with species vocals, cooldowns, volume control and quiet hours (auto during gaming)
 - Debug mind overlay showing behavior and drives
 - Transparent always-on-top Tauri overlay with tray controls
 - Windows native sensor layer using Win32 APIs directly (monitors, windows, cursor, foreground app, fullscreen, input idle time, workstation lock)
+- Launch-at-login toggle (Tauri autostart plugin)
+- Optional Cortex providers: Ollama (local), OpenAI, OpenRouter, Google Gemini and Anthropic — keys stay local; everything works with Cortex off
 - Browser/mock desktop mode for development without Windows
 - Onboarding flow: pick a species, name them, choose a temperament
 - No GitHub Actions requirement

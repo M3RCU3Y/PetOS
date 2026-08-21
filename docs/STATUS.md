@@ -50,14 +50,17 @@ state (`OpenInputDesktop`).
 - [x] memory changes future preference
 - [x] pets react causally to cursor/context
 - [x] multi-pet simulation exists
-- [x] furniture/toy objects exist
+- [x] furniture/toy objects exist (bed/ball/box/bowls/scratcher/plant/perch/tunnel; drag-to-move, right-click remove)
 - [x] browser development habitat exists
-- [x] persistent world exists (diary/routines/object memory included)
+- [x] persistent world exists (diary/routines/object memory included; backup rotation on write)
 - [x] Tauri shell exists
 - [x] Windows desktop sensor implementation exists (idle + lock added)
 - [x] compile Tauri shell on Windows (windows-gnu via space-free target dir)
 - [x] pose-based animation pipeline replaces raw procedural rectangles
-- [ ] production sprite packs / real-pet morphology mapping beyond palette
-- [ ] native per-pixel hit testing so only pet pixels capture clicks
-- [ ] signed installer/release packaging
-- [ ] SQLite persistence backend (JSON store currently; schema is migration-ready)
+- [x] sprite-sheet pack pipeline with behavior alias resolution + procedural fallback
+- [x] climb-aware surface pathfinding (cats route up walls beyond jump range)
+- [x] per-pixel hit testing for interaction clicks
+- [x] automated nightmare-QA stress test (monitor unplug, window snaps, explorer restart) in `tests/stress.test.mjs`
+- [ ] production sprite packs / real-pet morphology mapping beyond palette + markings classification
+- [ ] signed installer/release packaging (updater needs signing keys + endpoint)
+- [ ] SQLite persistence backend (JSON store is durable + migration-ready)
