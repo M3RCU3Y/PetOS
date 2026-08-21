@@ -10,6 +10,7 @@ import { SoundEngine } from "./sound.js";
 import { showOnboarding } from "./onboarding.js";
 import { InteractionManager, type InteractionTarget } from "./interaction.js";
 import { FurnitureEditor, FURNITURE_TEMPLATES, type FurnitureTemplate } from "./furniture.js";
+import { ThoughtBubbles, generateThought } from "./thoughts.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
 const renderer=new PixelRenderer(canvas);
@@ -28,6 +29,7 @@ const interactions=new InteractionManager(canvas,(target)=>{
   else if(target.kind==="feed"){pet.state.drives.hunger=Math.max(0,pet.state.drives.hunger-.3);pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.15);}
   else if(target.kind==="call")pet.state.body.target={...target.position};
 });
+const thoughts=new ThoughtBubbles();
 const furniture=new FurnitureEditor(canvas);
 furniture.setPlaceHandler((template,x,y)=>{
   const objectKind=template.kind==="food"||template.kind==="water"?"bowl":template.kind;
@@ -86,6 +88,8 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
       await refreshNative(now);if(lastNative){const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:lastNative.user_activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode};const state=sim.tick(input);
       for(const pet of sim.pets.values()){const prev=prevBehaviors.get(pet.state.id);if(prev&&prev!==pet.state.behavior)sound.playBehaviorSound(pet.state.id,pet.state.species,pet.state.behavior);prevBehaviors.set(pet.state.id,pet.state.behavior);}
+      if(Math.random()<.008){for(const pet of sim.pets.values()){const text=generateThought(pet.state);if(text)thoughts.show(pet.state,text,pet.state.body.position.x+virtualBounds.x,pet.state.body.position.y+virtualBounds.y);}}
+      thoughts.update(state.pets,virtualBounds.x,virtualBounds.y);
       renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
