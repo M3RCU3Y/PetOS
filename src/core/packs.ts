@@ -16,3 +16,59 @@ export function validatePack(value:unknown):PetPack|null{
   const appearance=x.appearance;if(!appearance||typeof appearance.coat!=="string"||typeof appearance.accent!=="string"||typeof appearance.eye!=="string")return null;
   return{id:x.id,name:x.name,version:x.version??"1.0.0",species:x.species as Species,author:x.author??"Community",description:x.description??"Custom PetOS pet pack",appearance:{...appearance,scale:Number.isFinite(appearance.scale)?appearance.scale:1},...(x.personality?{personality:x.personality}:{}),tags:Array.isArray(x.tags)?x.tags:[]};
 }
+
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const va = pa[i] ?? 0;
+    const vb = pb[i] ?? 0;
+    if (va !== vb) return va - vb;
+  }
+  return 0;
+}
+
+export function isCompatible(pack: PetPack, minVersion: string): boolean {
+  return compareVersions(pack.version, minVersion) >= 0;
+}
+
+export interface PackValidationResult {
+  pack: PetPack | null;
+  errors: string[];
+  warnings: string[];
+}
+
+export function validatePackDetailed(value: unknown): PackValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (!value || typeof value !== "object") {
+    return { pack: null, errors: ["Not a valid JSON object"], warnings };
+  }
+  const x = value as Partial<PetPack>;
+  if (typeof x.id !== "string" || !x.id.trim()) errors.push("Missing or empty 'id'");
+  if (typeof x.name !== "string" || !x.name.trim()) errors.push("Missing or empty 'name'");
+  if (!["cat", "dog", "rabbit", "bird"].includes(x.species ?? "")) errors.push(`Invalid species '${x.species}' — must be cat, dog, rabbit, or bird`);
+  if (!x.appearance || typeof x.appearance.coat !== "string") errors.push("Missing appearance.coat");
+  else if (!/^#[0-9a-fA-F]{6}$/.test(x.appearance.coat)) warnings.push("appearance.coat should be a hex color like #ff0000");
+  if (!x.appearance || typeof x.appearance.accent !== "string") errors.push("Missing appearance.accent");
+  if (!x.appearance || typeof x.appearance.eye !== "string") errors.push("Missing appearance.eye");
+  if (x.version && !/^\d+\.\d+\.\d+$/.test(x.version)) warnings.push("Version should follow semver (e.g. 1.0.0)");
+  if (x.personality) {
+    for (const [key, val] of Object.entries(x.personality)) {
+      if (typeof val !== "number" || val < 0 || val > 1) warnings.push(`Personality.${key} should be a number between 0 and 1`);
+    }
+  }
+  if (errors.length) return { pack: null, errors, warnings };
+  return {
+    pack: {
+      id: x.id!, name: x.name!, version: x.version ?? "1.0.0",
+      species: x.species as Species,
+      author: x.author ?? "Community",
+      description: x.description ?? "Custom PetOS pet pack",
+      appearance: { ...x.appearance!, scale: Number.isFinite(x.appearance!.scale) ? x.appearance!.scale : 1 },
+      ...(x.personality ? { personality: x.personality } : {}),
+      tags: Array.isArray(x.tags) ? x.tags : []
+    },
+    errors, warnings
+  };
+}
