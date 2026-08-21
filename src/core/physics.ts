@@ -7,7 +7,8 @@ const HANG_MS = 1400;
 const PEEK_MS = 1200;
 
 interface ClimbContext { winId:string; x:number; phase:"climb"|"hang"|"peek"|"pullup" }
-interface FlightState { target:Vec2 }
+interface FlightState { target:Vec2; startedAt:number }
+const MAX_FLIGHT_MS = 7000;
 
 export class PetPhysics {
   private routeCache = new Map<string, { targetId:string; route:PathEdge[]; stepIndex:number }>();
@@ -22,10 +23,11 @@ export class PetPhysics {
     const now=world.nowMs;
 
     if(this.flights.has(state.id)){
-      if(this.updateFlight(state,world,dt))return;
+      if(this.updateFlight(state,world,dt)){this.clampIntoWorld(state,world);return;}
+      this.clampIntoWorld(state,world);
     }
     if(this.climbs.has(state.id)){
-      if(this.updateTraversal(state,world,dt,now))return;
+      if(this.updateTraversal(state,world,dt,now)){this.clampIntoWorld(state,world);return;}
     }
 
     const target=this.resolveTarget(state,world);
@@ -42,7 +44,7 @@ export class PetPhysics {
     if(isBird&&body.grounded&&(behavior==="walk"||behavior==="investigate"||behavior==="seek_user"||behavior==="follow_pet")&&target){
       const dy=target.y-body.position.y,dx=target.x-body.position.x;
       if((Math.abs(dy)>50&&Math.abs(dx)>90)||Math.abs(dy)>140){
-        this.flights.set(state.id,{target:{...target}});
+        this.flights.set(state.id,{target:{...target},startedAt:now});
         body.grounded=false;body.surfaceId=null;
         body.velocity={x:Math.sign(dx)*profile.runSpeed*.8,y:-profile.jumpSpeed*.55};
         return;
@@ -165,11 +167,24 @@ export class PetPhysics {
     return true;
   }
 
+  private clampIntoWorld(state:PetState,world:WorldSnapshot):void{
+    const b=this.virtualBounds(world);
+    state.body.position.x=clamp(state.body.position.x,b.x+10,b.x+b.width-10);
+    state.body.position.y=clamp(state.body.position.y,b.y-200,b.y+b.height+400);
+  }
+
   private updateFlight(state:PetState,world:WorldSnapshot,dt:number):boolean{
     const flight=this.flights.get(state.id)!;
     const body=state.body;
     const profile=SPECIES[state.species].movement;
     if(["sleep","groom","sit"].includes(state.behavior)){this.flights.delete(state.id);return false;}
+    if(world.nowMs-flight.startedAt>MAX_FLIGHT_MS){this.flights.delete(state.id);return false;}
+    // If the flight target left the known desktop (monitor unplug, window closed), give up.
+    const b=this.virtualBounds(world);
+    if(flight.target.x<b.x-300||flight.target.x>b.x+b.width+300||flight.target.y<b.y-500||flight.target.y>b.y+b.height+600){
+      this.flights.delete(state.id);
+      return false;
+    }
     const dx=flight.target.x-body.position.x;
     const dy=flight.target.y-body.position.y;
     body.facing=dx<0?-1:1;

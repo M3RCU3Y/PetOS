@@ -4,16 +4,29 @@ import type { DesktopWindow, MonitorInfo, PetState, Surface, Vec2, WorldObject, 
 export function surfacesFromDesktop(monitors: MonitorInfo[], windows: DesktopWindow[], objects: WorldObject[] = []): Surface[] {
   const surfaces: Surface[] = [];
   for (const monitor of monitors) {
-    const taskbarHeight = Math.max(0, monitor.rect.y + monitor.rect.height - (monitor.workArea.y + monitor.workArea.height));
-    if (taskbarHeight > 0) {
+    const bottomInset = Math.max(0, monitor.rect.y + monitor.rect.height - (monitor.workArea.y + monitor.workArea.height));
+    const topInset = Math.max(0, monitor.workArea.y - monitor.rect.y);
+    if (bottomInset > 0) {
+      // Taskbar docked to the bottom edge of this monitor.
       surfaces.push({
         id: `taskbar:${monitor.id}`,
         kind: "taskbar",
-        rect: { x: monitor.workArea.x, y: monitor.workArea.y + monitor.workArea.height, width: monitor.workArea.width, height: taskbarHeight },
+        rect: { x: monitor.workArea.x, y: monitor.workArea.y + monitor.workArea.height, width: monitor.workArea.width, height: bottomInset },
         walkY: monitor.workArea.y + monitor.workArea.height,
         comfort: .45
       });
+    } else if (topInset > 0) {
+      // Taskbar docked to the top edge; its lower border is the walkable line.
+      const walkY = monitor.rect.y + topInset;
+      surfaces.push({
+        id: `taskbar:${monitor.id}`,
+        kind: "taskbar",
+        rect: { x: monitor.workArea.x, y: monitor.rect.y, width: monitor.workArea.width, height: topInset },
+        walkY,
+        comfort: .45
+      });
     } else {
+      // Hidden taskbar (or side-docked, where horizontal walking does not apply): raw floor.
       surfaces.push({
         id: `floor:${monitor.id}`,
         kind: "monitor_floor",
