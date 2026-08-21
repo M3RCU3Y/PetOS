@@ -11,6 +11,8 @@ import { showOnboarding } from "./onboarding.js";
 import { InteractionManager, type InteractionTarget } from "./interaction.js";
 import { FurnitureEditor, FURNITURE_TEMPLATES, type FurnitureTemplate } from "./furniture.js";
 import { ThoughtBubbles, generateThought } from "./thoughts.js";
+import { weatherFor, eventFor, weatherEffect } from "../core/weather.js";
+import { PhotographyMode } from "./photography.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
 const renderer=new PixelRenderer(canvas);
@@ -30,6 +32,7 @@ const interactions=new InteractionManager(canvas,(target)=>{
   else if(target.kind==="call")pet.state.body.target={...target.position};
 });
 const thoughts=new ThoughtBubbles();
+const photography=new PhotographyMode(renderer);
 const furniture=new FurnitureEditor(canvas);
 furniture.setPlaceHandler((template,x,y)=>{
   const objectKind=template.kind==="food"||template.kind==="water"?"bowl":template.kind;
@@ -76,6 +79,7 @@ const ui=new SettingsUI({
   onCreateCustomPet(config){const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const pet=new Pet({id:crypto.randomUUID(),name:config.name,species:config.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:config.personality});sim.addPet(pet,config.appearance);persist();}
 },settings,persistence);
 
+document.querySelector("#photo-btn")?.addEventListener("click",()=>photography.download());
 void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);void bridge.onSettingsRequested(()=>ui.open());
 
 function addPet(pack:PetPack,name:string):void{const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const init={id:crypto.randomUUID(),name,species:pack.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,...(pack.personality?{personality:pack.personality}:{})};const pet=new Pet(init);sim.addPet(pet,pack.appearance);persist();}
@@ -99,4 +103,5 @@ canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;co
 canvas.addEventListener("pointermove",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
 canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
-window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.code==="Escape")ui.close();});
+window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;document.querySelector("#photo-btn")?.addEventListener("click",()=>photography.download());
+void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.code==="Escape")ui.close();});
