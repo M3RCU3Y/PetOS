@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { resolveSheetAnimation } from "../dist/src/app/renderer.js";
-import { validatePackDetailed, BUILTIN_PACKS } from "../dist/src/core/packs.js";
+import { validatePackDetailed, validatePackDetailed as validate, BUILTIN_PACKS } from "../dist/src/core/packs.js";
 
 const SHEET = {
   src: "sheets/cat.png",
@@ -60,6 +62,29 @@ test("malformed sheets are warned about but do not reject the pack", () => {
   assert.ok(result.warnings.some(w => w.includes("sheet")));
 });
 
-test("builtin packs stay procedural (no sheets yet)", () => {
-  for (const pack of BUILTIN_PACKS) assert.equal(pack.appearance.sheet, undefined);
+test("sprite-demo builtin packs ship valid sheets and their art exists on disk", () => {
+  const root = join(import.meta.dirname, "..");
+  const pixelPacks = BUILTIN_PACKS.filter(p => p.appearance.sheet);
+  assert.ok(pixelPacks.length >= 2, "cat-pixel and dog-pixel built-ins present");
+  for (const pack of pixelPacks) {
+    assert.ok(existsSync(join(root, "web", pack.appearance.sheet.src)), `${pack.id} sheet file must exist: ${pack.appearance.sheet.src}`);
+    const anims = { ...pack.appearance.sheet.animations, default: pack.appearance.sheet.default };
+    for (const anim of Object.values(anims)) {
+      assert.ok(anim.row >= 0 && anim.frames >= 1, "animation rows/frames sane");
+    }
+    // The generated PNG header declares the exact sheet dimensions
+    const png = readFileSync(join(root, "web", pack.appearance.sheet.src));
+    assert.equal(png.readUInt32BE(16), pack.appearance.sheet.frameWidth * 6, "PNG width covers 6 frame columns");
+    assert.equal(png.readUInt32BE(20), pack.appearance.sheet.frameHeight * 4, "PNG height covers 4 animation rows");
+  }
+});
+
+test("shipped example pack JSON files validate", () => {
+  const root = join(import.meta.dirname, "..");
+  for (const name of ["cat-pixel.json", "dog-pixel.json"]) {
+    const raw = JSON.parse(readFileSync(join(root, "web", "packs", name), "utf8"));
+    const result = validate(raw);
+    assert.ok(result.pack, `${name} should validate`);
+    assert.ok(result.pack.appearance.sheet, `${name} carries a sheet`);
+  }
 });

@@ -1,0 +1,47 @@
+{
+  "id": "cat-pixel",
+  "name": "Pixel Cat (sprite demo)",
+  "version": "1.0.0",
+  "species": "cat",
+  "author": "PetOS",
+  "description": "Generated sprite-sheet demonstrating the PetOS art pipeline.",
+  "appearance": {
+    "coat": "#d77b36",
+    "accent": "#f2bf7d",
+    "eye": "#d9ef73",
+    "scale": 1,
+    "sheet": {
+      "src": "sheets/cat-sample.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "fps": 6,
+      "default": {
+        "row": 0,
+        "frames": 4
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": 4
+        },
+        "walk": {
+          "row": 1,
+          "frames": 6
+        },
+        "sleep": {
+          "row": 2,
+          "frames": 2,
+          "fps": 2
+        },
+        "run": {
+          "row": 3,
+          "frames": 6
+        }
+      }
+    }
+  },
+  "tags": [
+    "sample",
+    "sprites"
+  ]
+}

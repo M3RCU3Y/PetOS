@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "clean": "node scripts/clean.mjs",
-    "build": "npm run clean && tsc -p tsconfig.json && node scripts/copy-static.mjs",
+    "build": "npm run clean && tsc -p tsconfig.json && node scripts/make-sample-sheets.mjs && node scripts/copy-static.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "demo": "npm run build && node dist/src/demo.js",
     "dev:web": "npm run build && node scripts/serve.mjs",
