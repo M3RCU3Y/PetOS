@@ -22,6 +22,7 @@ export interface UIActions {
   onSoundVolume(volume:number):void;
   onToggleQuietHours(enabled:boolean):void;
   onCortexConfig(provider:"off"|"ollama"|"openai"|"openrouter"|"gemini"|"anthropic",apiKey:string,model:string):void;
+  onToggleAutostart(enabled:boolean):void;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -94,6 +95,8 @@ export class SettingsUI {
     const soundToggle=document.querySelector<HTMLInputElement>("#sound-toggle")!;soundToggle.checked=settings.sound;soundToggle.addEventListener("change",()=>this.actions.onToggleSound(soundToggle.checked));
     const volume=document.querySelector<HTMLInputElement>("#sound-volume")!;volume.value=String(settings.soundVolume);volume.addEventListener("input",()=>this.actions.onSoundVolume(Number(volume.value)));
     const quiet=document.querySelector<HTMLInputElement>("#quiet-hours-toggle")!;quiet.checked=settings.quietHours;quiet.addEventListener("change",()=>this.actions.onToggleQuietHours(quiet.checked));
+    const autostart=document.querySelector<HTMLInputElement>("#autostart-toggle")!;
+    if(autostart){autostart.checked=settings.autostart;autostart.addEventListener("change",()=>this.actions.onToggleAutostart(autostart.checked));}
     const cortex=document.querySelector<HTMLSelectElement>("#cortex-provider");
     if(cortex){
       const keyInput=document.querySelector<HTMLInputElement>("#cortex-key")!,modelInput=document.querySelector<HTMLInputElement>("#cortex-model")!;

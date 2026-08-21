@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize};
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder};
 
 #[derive(Clone, Serialize, Debug)]
@@ -75,6 +76,17 @@ fn show_settings(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let launcher = app.autolaunch();
+    if enabled { launcher.enable().map_err(|e| e.to_string()) } else { launcher.disable().map_err(|e| e.to_string()) }
+}
+
+#[tauri::command]
+fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
 fn fit_overlay(app:&tauri::AppHandle) {
     if let Some(w)=app.get_webview_window("main") {
         let b=platform::virtual_bounds();
@@ -87,8 +99,9 @@ fn fit_overlay(app:&tauri::AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .manage(DesktopState::default())
-        .invoke_handler(tauri::generate_handler![get_desktop_snapshot,set_interaction_mode,set_overlay_visible,show_settings])
+        .invoke_handler(tauri::generate_handler![get_desktop_snapshot,set_interaction_mode,set_overlay_visible,show_settings,set_autostart,get_autostart])
         .setup(|app| {
             fit_overlay(app.handle());
             let settings=MenuItem::with_id(app,"settings","Open PetOS",true,None::<&str>)?;

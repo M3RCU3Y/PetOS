@@ -93,6 +93,7 @@ const ui=new SettingsUI({
   onSoundVolume(volume){settings.soundVolume=volume;sound.setVolume(volume);persist();},
   onToggleQuietHours(enabled){settings.quietHours=enabled;sound.setQuietHours(enabled);persist();},
   onCortexConfig(provider,apiKey,model){settings.cortexProvider=provider;settings.cortexApiKey=apiKey;settings.cortexModel=model;cortex=createCortex(provider,{apiKey,model});persist();},
+  onToggleAutostart(enabled){settings.autostart=enabled;void bridge.setAutostart(enabled);persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},

@@ -247,4 +247,5 @@ export interface PetOSSettings {
   cortexProvider: "off" | "ollama" | "openai" | "openrouter" | "gemini" | "anthropic";
   cortexApiKey: string;
   cortexModel: string;
+  autostart: boolean;
 }

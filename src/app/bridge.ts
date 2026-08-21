@@ -27,6 +27,8 @@ export interface DesktopBridge {
   setOverlayVisible(enabled:boolean):Promise<void>;
   openSettings():Promise<void>;
   onSettingsRequested(cb:()=>void):Promise<()=>void>;
+  setAutostart(enabled:boolean):Promise<void>;
+  getAutostart():Promise<boolean>;
 }
 
 export class TauriDesktopBridge implements DesktopBridge {
@@ -37,6 +39,8 @@ export class TauriDesktopBridge implements DesktopBridge {
   async setOverlayVisible(enabled:boolean):Promise<void>{await this.api.core!.invoke("set_overlay_visible",{enabled});}
   async openSettings():Promise<void>{await this.api.core!.invoke("show_settings");}
   async onSettingsRequested(cb:()=>void):Promise<()=>void>{if(!this.api.event?.listen)return()=>{};return this.api.event.listen("petos://show-settings",()=>cb());}
+  async setAutostart(enabled:boolean):Promise<void>{await this.api.core!.invoke("set_autostart",{enabled});}
+  async getAutostart():Promise<boolean>{try{return await this.api.core!.invoke<boolean>("get_autostart");}catch{return false;}}
 }
 
 export class MockDesktopBridge implements DesktopBridge {
@@ -63,6 +67,8 @@ export class MockDesktopBridge implements DesktopBridge {
   async setOverlayVisible(_enabled:boolean):Promise<void>{}
   async openSettings():Promise<void>{for(const fn of this.listeners)fn();}
   async onSettingsRequested(cb:()=>void):Promise<()=>void>{this.listeners.add(cb);return()=>this.listeners.delete(cb);}
+  async setAutostart(enabled:boolean):Promise<void>{try{localStorage.setItem("petos:mock-autostart",enabled?"1":"0");}catch{}}
+  async getAutostart():Promise<boolean>{try{return localStorage.getItem("petos:mock-autostart")==="1";}catch{return false;}}
 }
 
 export function createDesktopBridge():DesktopBridge{return window.__TAURI__?.core?.invoke?new TauriDesktopBridge():new MockDesktopBridge();}
