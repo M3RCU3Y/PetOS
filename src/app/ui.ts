@@ -1,3 +1,4 @@
+import { computeSocialEdges, renderSocialGraph } from "./social.js";
 import { BUILTIN_PACKS, validatePack, type PetPack } from "../core/packs.js";
 import { SPECIES } from "../core/species.js";
 import type { PetOSSettings, Species } from "../core/types.js";
@@ -72,6 +73,14 @@ export class SettingsUI {
     document.querySelector("#reset-state")!.addEventListener("click",()=>{if(confirm("Reset all PetOS pets, memories and objects?"))this.actions.onReset();});
     const file=document.querySelector<HTMLInputElement>("#pack-file")!;file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;try{const pack=validatePack(JSON.parse(await f.text()));if(!pack)throw new Error("invalid pack");this.customPacks.push(pack);this.renderPacks();this.actions.onImportPack(pack);}catch{alert("That file is not a valid PetOS pet pack JSON.");}finally{file.value="";}});
   }
+  private updateSocialGraph(pets:{id:string;name:string;species:Species;behavior:string}[]):void{
+    const container=document.querySelector("#social-graph");
+    if(!container)return;
+    const relMap=new Map<string,Map<string,number>>();
+    const edges=computeSocialEdges(pets.map(p=>({id:p.id,name:p.name,species:p.species} as any)),relMap);
+    renderSocialGraph(container as HTMLElement,pets.map(p=>({id:p.id,name:p.name,species:p.species})),edges);
+  }
+
   private bindCreator():void{
     const container=document.querySelector("#creator-sliders")!;
     container.innerHTML=PERSONALITY_TRAILS.map(t=>{
