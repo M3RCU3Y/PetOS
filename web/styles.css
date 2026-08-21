@@ -29,3 +29,17 @@
 .thought-bubble::after{content:"";position:absolute;bottom:-8px;left:20px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid rgba(15,17,24,.92)}
 @keyframes thought-appear{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .footer-actions{display:flex;gap:6px}
+
+/* onboarding temperament step + creator/social sections */
+.onboarding-temperaments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin:1rem 0;}
+.onboarding-temperaments button{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:inherit;cursor:pointer;text-align:left;}
+.onboarding-temperaments button.selected{border-color:#7ea4d8;background:rgba(126,164,216,.14);}
+.onboarding-temperaments small{opacity:.65;font-size:.72rem;}
+.onboarding-hint{font-size:.75rem;opacity:.6;margin:.2rem 0 .8rem;}
+.species-row{display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap;}
+.species-row button{padding:.45rem .8rem;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:transparent;color:inherit;cursor:pointer;}
+.species-row button.primary{background:rgba(126,164,216,.18);border-color:#7ea4d8;}
+.color-row{display:flex;gap:.8rem;margin:.8rem 0;}
+#creator-sliders{display:flex;flex-direction:column;gap:.35rem;margin:.6rem 0 1rem;}
+.creator-slider label{display:flex;justify-content:space-between;font-size:.78rem;opacity:.85;margin-bottom:.15rem;}
+#social-graph svg{max-width:100%;}

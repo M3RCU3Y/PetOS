@@ -82,5 +82,5 @@ export class PetOSSimulation {
     return{pets:[...this.pets.values()].map(p=>p.state),objects:this.objects,decisions};
   }
 
-  records():PetRecord[]{return[...this.pets.values()].map(p=>({save:p.save(),appearance:this.appearances.get(p.state.id)??{coat:"#d98742",accent:"#f2c287",eye:"#d7ef76",scale:1}}));}
+  records():PetRecord[]{return[...this.pets.values()].map(p=>({save:p.save(),appearance:this.appearances.get(p.state.id)??{coat:"#d98742",accent:"#f2c287",eye:"#d7ef76",scale:1},...p.exportExtras()}));}
 }

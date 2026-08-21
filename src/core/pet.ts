@@ -259,6 +259,11 @@ export class Pet {
   private remember(input:Omit<EpisodicMemory,"id">):void { this.memory.remember({id:`${this.state.id}:${input.atMs}:${this.rng.next().toString(36).slice(2,7)}`,...input}); }
   get routineState():string|null{return this.routines.active}
   save():PetSave { const mem=this.memory.serialize(); return {version:1,state:structuredClone(this.state),...mem}; }
+  exportExtras():{diary:ReturnType<PetDiary["serialize"]>;routines:ReturnType<Pet["saveRoutines"]>}{return{diary:this.diary.serialize(),routines:this.saveRoutines()};}
+  restoreExtras(extras:{diary?:unknown;routines?:unknown}):void{
+    if(extras.diary&&typeof extras.diary==="object")this.diary.restore(extras.diary as Parameters<PetDiary["restore"]>[0]);
+    if(extras.routines&&typeof extras.routines==="object")this.restoreRoutines(extras.routines as Parameters<Pet["restoreRoutines"]>[0]);
+  }
   saveRoutines(){return this.routines.serialize()}
   restoreRoutines(data:{activeRoutineId?:string|null;lastCompleted?:Record<string,number>}){this.routines.restore(data)}
 }

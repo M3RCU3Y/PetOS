@@ -64,11 +64,11 @@ let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphU
 let cortex=createCortex(settings.cortexProvider);
 
 const loaded=persistence.load();
-if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{sim.addPet(Pet.fromSave(rec.save),rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
+if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
 if(sim.pets.size===0){
   void showOnboarding(document.body).then(result=>{
     const spawn={x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height-60};
-    sim.addPet(new Pet({id:crypto.randomUUID(),name:result.name,species:result.species,nowMs:Date.now(),x:spawn.x,y:spawn.y}),{coat:result.coat,accent:result.accent,eye:result.eye,scale:1});
+    sim.addPet(new Pet({id:crypto.randomUUID(),name:result.name,species:result.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:result.personality}),{coat:result.coat,accent:result.accent,eye:result.eye,scale:1});
     persist();
   });
 }

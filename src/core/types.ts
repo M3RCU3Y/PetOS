@@ -208,6 +208,10 @@ export interface PetAppearance {
 export interface PetRecord {
   save: PetSave;
   appearance: PetAppearance;
+  /** Serialized PetDiary state (v2 persistence) */
+  diary?: unknown;
+  /** Serialized RoutineManager state (v2 persistence) */
+  routines?: unknown;
 }
 
 export interface PetOSSettings {
