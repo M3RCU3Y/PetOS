@@ -10,25 +10,32 @@ PetOS is not a random sprite wandering over your taskbar. Every pet has species 
 - Cats, dogs, rabbits, and birds with different traits and locomotion
 - Drives: fatigue, hunger, thirst, play, social need, curiosity, comfort
 - Continuous affect: valence, arousal, stress
-- Episodic memory, learned surface/app preferences, social relationships
-- Keeper focus logic that reduces interruptions in fullscreen/gaming contexts
+- Episodic memory, learned surface/app/toy preferences, rich social relationships (familiarity, trust, affection, irritation, rivalry)
+- Keeper focus logic that reduces interruptions in fullscreen/gaming contexts, plus idle/battery/lock awareness
 - Desktop topology from monitors, work areas, taskbar edges, and visible windows
-- Cursor sensing and contextual chase/pounce behavior
+- Cursor sensing: stalk at medium range, chase and pounce up close
 - Gravity, jumping, falling, landing, walking, running and target following
-- Window riding: grounded pets inherit window motion instead of sliding off reality
-- Multi-pet simulation and social behaviors
-- Habitat objects: beds, balls, boxes, food bowls, water bowls and cat scratchers
+- Window riding; violent window snaps startle pets off instead of teleporting them
+- **Window-side climbing** with hang → peek → pull-up traversal to higher ledges
+- Bird flight between surfaces; rabbit hop locomotion
+- Multi-step search chains for remembered objects (travel → miss → search nearby → frustration → give up)
+- Personality drift from lived experience; sleep-time memory consolidation; favorite toys/places/apps
+- Multi-pet life: cuddling, play fighting, bed sharing vs. bed contests, newcomer curiosity, rival avoidance
+- Daily routines (morning stretch, mealtime, evening wind-down) and deterministic weather + seasonal events that color mood
+- Optional Cortex layer: local Ollama provider suggests high-level intentions shown as thought bubbles; fully functional without it
+- Habitat objects: beds, balls, boxes, food/water bowls, scratchers — each advertising affordances to the brain
 - Circadian weighting, so time of day subtly changes rest/play tendencies
-- In-app life log sourced from episodic memory
-- Persistent pets, memory, appearance, objects and settings in local storage
-- Built-in pet packs plus JSON community pack import
-- Pixel renderer for all four starter species
-- Drag/pet interaction mode
+- In-app diary (achievements) and life log sourced from episodic memory
+- Persistent pets — memory, appearance, diary, routines and habits survive restarts — plus export/import backups
+- Built-in pet packs plus JSON community pack import with detailed validation and version compatibility
+- Pose-based pixel renderer: species-specific skeletons, walk/run cycles, tails, blinking, gaze tracking, squash & stretch, sleep Z's, startle marks, dust and speed lines
+- Interaction mode: pet, feed, brush, wake, call (personality decides if they bother), drag/toss, right-click menu, laser pointer (`Ctrl+Shift+L`)
+- Procedural sound engine with species vocals, cooldowns, volume control and quiet hours (auto during gaming)
 - Debug mind overlay showing behavior and drives
-- Transparent always-on-top Tauri overlay
-- Windows native sensor layer using Win32 APIs directly
-- Tray controls and settings summon
+- Transparent always-on-top Tauri overlay with tray controls
+- Windows native sensor layer using Win32 APIs directly (monitors, windows, cursor, foreground app, fullscreen, input idle time, workstation lock)
 - Browser/mock desktop mode for development without Windows
+- Onboarding flow: pick a species, name them, choose a temperament
 - No GitHub Actions requirement
 
 ## Architecture
@@ -80,13 +87,23 @@ Build an installer with:
 npm run tauri:build
 ```
 
+> **Building from a path with spaces?** The MinGW resource compiler (`windres`) used by the
+> windows-gnu toolchain fails when the project path contains spaces. This repo ships
+> `src-tauri/.cargo/config.toml` which points the cargo target directory at a space-free
+> location, so `cargo check`/`tauri dev` work out of the box. See `docs/STATUS.md`.
+
 PetOS intentionally does not require GitHub Actions. Build and test locally.
 
 ## Interaction
 
-PetOS normally uses click-through mode so it does not steal clicks from your applications. Open the tray menu and choose **Interact with pets**, or use the settings panel, to make the overlay interactive. Drag a pet to pick it up. Releasing it also counts as affectionate attention and contributes to learned location preferences.
+PetOS normally uses click-through mode so it does not steal clicks from your applications. Open the tray menu and choose **Interact with pets**, or use the settings panel (`Ctrl + Shift + P` toggles it), to make the overlay interactive:
 
-`Ctrl + Shift + P` toggles interaction mode while the overlay has keyboard focus.
+- **Drag** a pet to pick it up (shy pets dislike sudden grabs)
+- Right-click a pet for the context menu: **pet / feed / brush / wake / call**
+- Independent pets may ignore calls; clingy ones come running
+- `Ctrl + Shift + L` toggles the laser pointer — pets will chase it
+
+Personality modifies every reaction: playful pets live for toys, independent ones barely look up.
 
 ## Pet packs
 
