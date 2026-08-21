@@ -1,14 +1,17 @@
 import { clamp, distance } from "./math.js";
+import { buildSurfaceGraph, planRoute, type PathEdge } from "./pathfinding.js";
 import { SPECIES } from "./species.js";
 import type { PetState, Surface, Vec2, WorldObject, WorldSnapshot } from "./types.js";
 
 export class PetPhysics {
+  private routeCache = new Map<string, { targetId: string; route: PathEdge[]; stepIndex: number }>();
   update(state: PetState, world: WorldSnapshot, dtMs: number): void {
     const dt=Math.min(dtMs,50)/1000;
     const profile=SPECIES[state.species].movement;
     const body=state.body;
     if(body.held){body.velocity={x:0,y:0};return;}
     const target=this.resolveTarget(state,world);
+    const routedTarget=this.resolveRoutedTarget(state,world,target);
     const behavior=state.behavior;
     const locomotion=["walk","investigate","seek_user","follow_pet","play_toy","play_pet","greet_pet","hide","perch","eat","drink","scratch"].includes(behavior);
     const fast=["run","chase_cursor","zoomies","pounce"].includes(behavior);
@@ -17,7 +20,8 @@ export class PetPhysics {
       const speed=fast?profile.runSpeed:profile.walkSpeed;
       body.facing=dx<0?-1:1;
       body.velocity.x=Math.abs(dx)<4?0:Math.sign(dx)*speed;
-      if(Math.abs(target.y-body.position.y)>42 && body.grounded && ["investigate","pounce","perch"].includes(behavior)) this.jump(state,target);
+      if(Math.abs(target.y-body.position.y)>42 && body.grounded && !routedTarget) this.jump(state,target);
+
     }else if(["idle","sit","sleep","groom","stretch"].includes(behavior)){
       body.velocity.x*=Math.pow(.03,dt);
     }
@@ -41,6 +45,47 @@ export class PetPhysics {
     state.body.velocity.y=-m.jumpSpeed;
     if(target){const dx=target.x-state.body.position.x;state.body.velocity.x=Math.sign(dx||1)*Math.min(m.runSpeed,Math.abs(dx)*1.8);}
     state.body.grounded=false;state.body.surfaceId=null;
+  }
+
+  private resolveRoutedTarget(state:PetState,world:WorldSnapshot,directTarget:Vec2|null):Vec2|null{
+    if(!directTarget||!state.body.grounded)return directTarget;
+    const currentSurface=state.body.surfaceId;
+    if(!currentSurface)return directTarget;
+    const targetSurface=world.surfaces.find(s=>{
+      return directTarget.x>=s.rect.x&&directTarget.x<=s.rect.x+s.rect.width&&Math.abs(directTarget.y-s.walkY)<20;
+    });
+    if(!targetSurface||targetSurface.id===currentSurface)return directTarget;
+    const cached=this.routeCache.get(state.id);
+    if(cached&&cached.targetId===targetSurface.id)return this.advanceRoute(state,cached);
+    const graph=buildSurfaceGraph(world.surfaces,SPECIES[state.species].movement.jumpSpeed,220);
+    const route=planRoute(graph,currentSurface,targetSurface.id);
+    if(!route.length)return directTarget;
+    const entry={targetId:targetSurface.id,route,stepIndex:0};
+    this.routeCache.set(state.id,entry);
+    return this.advanceRoute(state,entry);
+  }
+
+  private advanceRoute(state:PetState,entry:{targetId:string;route:PathEdge[];stepIndex:number}):Vec2|null{
+    if(entry.stepIndex>=entry.route.length){this.routeCache.delete(state.id);return null;}
+    const edge: PathEdge | undefined = entry.route[entry.stepIndex];
+    if (!edge) { this.routeCache.delete(state.id); return null; }
+    const body=state.body;
+    if(body.surfaceId===edge.from){
+      if(Math.abs(body.position.x-edge.launchPoint.x)<16){
+        this.jump(state,edge.landingPoint);
+        entry.stepIndex++;
+        if(entry.stepIndex>=entry.route.length){this.routeCache.delete(state.id);return null;}
+        const next: PathEdge | undefined = entry.route[entry.stepIndex];
+        if (!next) { this.routeCache.delete(state.id); return null; }
+        return next.landingPoint;
+      }
+      return edge.launchPoint;
+    }
+    entry.stepIndex++;
+    if(entry.stepIndex>=entry.route.length){this.routeCache.delete(state.id);return null;}
+    const nextStep: PathEdge | undefined = entry.route[entry.stepIndex];
+    if (!nextStep) { this.routeCache.delete(state.id); return null; }
+    return nextStep.launchPoint;
   }
 
   private resolveTarget(state:PetState,world:WorldSnapshot):Vec2|null{
