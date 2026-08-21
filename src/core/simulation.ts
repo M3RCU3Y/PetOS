@@ -18,6 +18,18 @@ export class PetOSSimulation {
   addObject(object:WorldObject):void{this.objects.push(object);}
   removeObject(id:string):void{const i=this.objects.findIndex(o=>o.id===id);if(i>=0)this.objects.splice(i,1);}
 
+  private tickAccumulator=0;
+  private lastAllSleeping=false;
+
+  shouldTick(dtMs:number):boolean{
+    const allSleeping=[...this.pets.values()].length>0&&[...this.pets.values()].every(p=>p.state.behavior==="sleep");
+    this.lastAllSleeping=allSleeping;
+    const interval=allSleeping?200:16;
+    this.tickAccumulator+=dtMs;
+    if(this.tickAccumulator>=interval){this.tickAccumulator=0;return true;}
+    return false;
+  }
+
   tick(frame:DesktopFrame):SimFrame{
     const states=[...this.pets.values()].map(p=>p.state);
     const surfaces=surfacesFromDesktop(frame.monitors,frame.windows,this.objects);
