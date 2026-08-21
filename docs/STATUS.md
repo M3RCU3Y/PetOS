@@ -58,11 +58,13 @@ state (`OpenInputDesktop`).
 - [x] Windows desktop sensor implementation exists (idle + lock added)
 - [x] compile Tauri shell on Windows (windows-gnu via space-free target dir)
 - [x] pose-based animation pipeline replaces raw procedural rectangles
-- [x] sprite-sheet pack pipeline with behavior alias resolution + procedural fallback
+- [x] sprite-sheet pack pipeline with behavior alias resolution + procedural fallback (generated demo packs built in)
 - [x] climb-aware surface pathfinding (cats route up walls beyond jump range)
 - [x] per-pixel hit testing for interaction clicks
+- [x] Blind privacy level enforced at frame level (`applyPrivacy`), maxFps cap, reducedMotion rendering
+- [x] focus companion Pomodoro + adoption-day anniversaries + weather ambience
 - [x] automated nightmare-QA stress test (monitor unplug, window snaps, explorer restart) in `tests/stress.test.mjs`
 - [x] installer bundling verified end-to-end (MSI + NSIS artifacts built locally)
-- [ ] production sprite packs / real-pet morphology mapping beyond palette + markings classification
+- [ ] production sprite packs / real-pet morphology mapping beyond palette + markings classification (pipeline ready; awaiting art)
 - [ ] signed installers + update endpoint (artifacts build unsigned; updater needs signing keys)
 - [ ] SQLite persistence backend (JSON store is durable + migration-ready)

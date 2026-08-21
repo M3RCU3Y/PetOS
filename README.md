@@ -21,7 +21,9 @@ PetOS is not a random sprite wandering over your taskbar. Every pet has species 
 - Multi-step search chains for remembered objects (travel → miss → search nearby → frustration → give up)
 - Personality drift from lived experience; sleep-time memory consolidation; favorite toys/places/apps
 - Multi-pet life: cuddling, play fighting, bed sharing vs. bed contests, newcomer curiosity, rival avoidance
-- Daily routines (morning stretch, mealtime, evening wind-down) and deterministic weather + seasonal events that color mood
+- Daily routines (morning stretch, mealtime, evening wind-down) and deterministic weather — with on-screen rain, snow and storm ambience — plus seasonal events
+- **Focus companion (Pomodoro)**: pets settle while you work and come visit during breaks
+- Adoption days are remembered: diary celebration, all-day mood boost and a party hat
 - Optional Cortex layer: local Ollama provider suggests high-level intentions shown as thought bubbles; fully functional without it
 - Habitat objects: beds, balls, boxes, food/water bowls, scratchers — each advertising affordances to the brain
 - Circadian weighting, so time of day subtly changes rest/play tendencies
@@ -112,7 +114,7 @@ Personality modifies every reaction: playful pets live for toys, independent one
 
 ## Pet packs
 
-A pack is deliberately simple JSON. The current importer supports species, appearance and personality overrides:
+A pack is deliberately simple JSON. Appearance, personality, markings and optional sprite sheets:
 
 ```json
 {
@@ -125,25 +127,49 @@ A pack is deliberately simple JSON. The current importer supports species, appea
   "appearance": {
     "coat": "#22252c",
     "accent": "#f2f0e9",
-    "eye": "#8dd7a2",
-    "scale": 1
+    "eye": "#8dd7a1",
+    "scale": 1,
+    "markings": "tuxedo",
+    "sheet": {
+      "src": "sheets/my-cat.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "fps": 6,
+      "default": { "row": 0, "frames": 4 },
+      "animations": {
+        "idle": { "row": 0, "frames": 4 },
+        "walk": { "row": 1, "frames": 6 },
+        "sleep": { "row": 2, "frames": 2, "fps": 2 },
+        "run": { "row": 3, "frames": 6 }
+      }
+    }
   },
-  "personality": {
-    "curiosity": 0.9,
-    "playfulness": 0.75,
-    "affection": 0.55
-  },
+  "personality": { "curiosity": 0.9, "playfulness": 0.75 },
   "tags": ["custom"]
 }
 ```
 
-The pack format is intentionally data-driven so sprite sheets, sounds, custom behaviors and accessories can be added without contaminating the simulation core.
+### Bringing your own art
+
+The `sheet` is a horizontal strip of equally sized frames; each row is one animation
+loop. Behaviors resolve to a row by name (`idle`, `walk`, `run`, `sleep`, `eat`,
+`groom`, `stalk`, `pounce`, …), then fall back through sensible aliases and finally to
+`default`. Put the image under `web/sheets/`, reference it relatively, and PetOS plays
+it automatically — procedural art renders until the sheet loads, so a missing file is
+never fatal. Two generated demo packs ("Pixel Cat / Pixel Dog (sprite demo)") are
+built in as living examples of the format.
+
+The pack format is intentionally data-driven so sounds, accessories and custom behaviors can be added without contaminating the simulation core.
 
 ## Privacy model
 
-The default **Ambient** design reads only low-level context needed to inhabit the desktop: geometry, cursor position/speed, foreground application identity, monitor/work-area information and broad activity state. The current build does **not** capture screen pixels, text being typed, clipboard contents, microphone audio or document contents.
+PetOS ships a real privacy dial, not a promise:
 
-Future visual/LLM perception must remain explicit opt-in and isolated behind the Cortex interface.
+- **Blind (0)** — geometry only. App names are stripped, window titles scrubbed, and no activity inference reaches the brain. Pets see floors, ledges and your cursor; nothing else.
+- **Ambient (1, default)** — adds foreground app identity and broad activity categories (gaming / media / fullscreen).
+- **Context (2) / Vision (3)** — capability boundaries reserved for future local classification and explicit opt-in perception.
+
+No level captures screen pixels, keystrokes, clipboard or microphone audio. Cortex prompts contain only ambient context categories — never content.
 
 ## Project principle
 
