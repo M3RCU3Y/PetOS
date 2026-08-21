@@ -9,7 +9,8 @@ const BASE: Record<Behavior, number> = {
   idle:.24, walk:.2, run:.02, sit:.2, sleep:.02, groom:.05, stretch:.035,
   investigate:.02, chase_cursor:0, pounce:0, seek_user:.01, zoomies:0,
   jump:.01, climb:0, perch:.02, hide:0, eat:0, drink:0,
-  play_toy:0, carry_toy:0, follow_pet:0, play_pet:0, greet_pet:0, scratch:0
+  play_toy:0, carry_toy:0, follow_pet:0, play_pet:0, greet_pet:0, scratch:0,
+  stalk:0, startle:0, hang:0, peek:0, cuddle:0, play_fight:0
 };
 const MIN_DURATION_MS: Partial<Record<Behavior, number>> = {
   sleep: 14_000, groom: 4_000, sit: 3_000, idle: 1_800, chase_cursor: 2_000, investigate: 2_600,

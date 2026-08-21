@@ -1,95 +1,496 @@
 import { SPECIES } from "../core/species.js";
 import type { PetAppearance, PetState, Rect, Vec2, WorldObject } from "../core/types.js";
 
-export interface RenderScene { pets:PetState[]; appearances:Map<string,PetAppearance>; objects:WorldObject[]; debug:boolean; decisions:Record<string,{behavior:string;reason:string;score:number}>; virtualBounds:Rect; }
+export interface RenderScene { pets:PetState[]; appearances:Map<string,PetAppearance>; objects:WorldObject[]; debug:boolean; decisions:Record<string,{behavior:string;reason:string;score:number}>; virtualBounds:Rect; cursor?:Vec2; }
+
+interface Pose {
+  lying:boolean; sitting:boolean; vertical:boolean; hanging:boolean; peeking:boolean;
+  crouch:number; bow:number; arch:number; headDip:number; headBob:number;
+  eyeOpen:number; pupilX:number; pupilY:number; earBack:number; earTwitch:number;
+  tailLift:number; tailWagAmp:number; tailFast:boolean;
+  gait:number; legAmp:number; bounce:number; flap:number; preen:boolean;
+  zzz:boolean; speedLines:boolean; puff:boolean; carry:boolean; pawReach:number;
+}
+
+interface MammalShape {
+  bodyLen:number; bodyH:number; legH:number; legW:number; headR:number; headX:number;
+  ear:"point"|"floppy"|"tall"; tail:"curve"|"stick"|"puff"; snout:number;
+}
+
+const SHAPES:Record<string,MammalShape> = {
+  cat:{bodyLen:40,bodyH:24,legH:13,legW:5,headR:13,headX:21,ear:"point",tail:"curve",snout:4},
+  dog:{bodyLen:46,bodyH:26,legH:14,legW:6,headR:13,headX:23,ear:"floppy",tail:"stick",snout:8},
+  rabbit:{bodyLen:34,bodyH:20,legH:10,legW:5,headR:11,headX:15,ear:"tall",tail:"puff",snout:2}
+};
+
+const TAU = Math.PI*2;
+
+function shade(hex:string,f:number):string{
+  const n=parseInt(hex.slice(1),16);
+  const ch=(v:number)=>Math.round(Math.max(0,Math.min(255,v*f)));
+  return `#${[ch((n>>16)&255),ch((n>>8)&255),ch(n&255)].map(v=>v.toString(16).padStart(2,"0")).join("")}`;
+}
+function hash01(id:string):number{let h=2166136261;for(const c of id){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 
 export class PixelRenderer {
   private ctx:CanvasRenderingContext2D;
   private dpr=1;
-  constructor(readonly canvas:HTMLCanvasElement){const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas unavailable");this.ctx=ctx;this.ctx.imageSmoothingEnabled=false;this.resize();window.addEventListener("resize",()=>this.resize());}
-  resize():void{this.dpr=Math.max(1,devicePixelRatio||1);const w=innerWidth,h=innerHeight;this.canvas.width=Math.floor(w*this.dpr);this.canvas.height=Math.floor(h*this.dpr);this.canvas.style.width=`${w}px`;this.canvas.style.height=`${h}px`;this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.ctx.imageSmoothingEnabled=false;}
-  render(scene:RenderScene):void{const c=this.ctx;c.clearRect(0,0,innerWidth,innerHeight);const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y;for(const object of scene.objects)this.drawObject(object,{x:object.position.x+ox,y:object.position.y+oy});for(const pet of scene.pets){const app=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};this.drawPet(pet,app,{x:pet.body.position.x+ox,y:pet.body.position.y+oy});if(scene.debug)this.drawDebug(pet,scene.decisions[pet.id],{x:pet.body.position.x+ox,y:pet.body.position.y+oy});}}
-  hitTest(pet:PetState,point:Vec2,bounds:Rect):boolean{const profile=SPECIES[pet.species].movement,s=1.3;const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y;return point.x>=x-profile.bodyWidth*s/2&&point.x<=x+profile.bodyWidth*s/2&&point.y>=y-profile.bodyHeight*s&&point.y<=y+8;}
+  private landing=new Map<string,{at:number;vy:number}>();
+  private wasGrounded=new Map<string,boolean>();
+  private pendingVy=new Map<string,number>();
 
-  private drawPet(p:PetState,a:PetAppearance,pos:Vec2):void{
-    const c=this.ctx;
-    const t=performance.now();
-    const moving=["walk","run","zoomies","chase_cursor"].includes(p.behavior);
-    const sleeping=p.behavior==="sleep";
-    const breathe=sleeping?1+Math.sin(t/600)*0.03:1;
-    const scale=a.scale*breathe;
-    c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*scale,scale);
-    const bounce=moving?Math.sin(t/(["run","zoomies"].includes(p.behavior)?55:90))*2:0;c.translate(0,bounce);
-    const gaitPhase=t/(p.behavior==="run"||p.behavior==="zoomies"?80:140);
-    const blink=Math.sin(t/3200)>0.97?0.15:1;
-    const earTwitch=Math.sin(t/2800+pos.x*0.01)>0.95?2:0;
-    if(p.species==="cat")this.cat(p,a,t,gaitPhase,moving,sleeping,blink,earTwitch);
-    else if(p.species==="dog")this.dog(p,a,t,gaitPhase,moving,sleeping,blink);
-    else if(p.species==="rabbit")this.rabbit(p,a,t,gaitPhase,moving,sleeping,blink,earTwitch);
-    else this.bird(p,a,t,moving,sleeping);
-    c.restore();
+  constructor(readonly canvas:HTMLCanvasElement){
+    const ctx=canvas.getContext("2d");
+    if(!ctx)throw new Error("Canvas unavailable");
+    this.ctx=ctx;this.ctx.imageSmoothingEnabled=false;this.resize();
+    window.addEventListener("resize",()=>this.resize());
   }
-  private cat(p:PetState,a:PetAppearance,t:number,gait:number,moving:boolean,sleeping:boolean,blink:number,earTwitch:number):void{
+  resize():void{
+    this.dpr=Math.max(1,devicePixelRatio||1);
+    const w=innerWidth,h=innerHeight;
+    this.canvas.width=Math.floor(w*this.dpr);this.canvas.height=Math.floor(h*this.dpr);
+    this.canvas.style.width=`${w}px`;this.canvas.style.height=`${h}px`;
+    this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.ctx.imageSmoothingEnabled=false;
+  }
+
+  render(scene:RenderScene):void{
+    const c=this.ctx;c.clearRect(0,0,innerWidth,innerHeight);
+    const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y;
+    for(const object of scene.objects)this.drawObject(object,{x:object.position.x+ox,y:object.position.y+oy});
+    const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);
+    for(const pet of ordered){
+      const app=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
+      const pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy};
+      const cursorScreen={x:(scene.cursor?.x??pos.x)+ox,y:(scene.cursor?.y??pos.y)+oy};
+      this.drawPet(pet,app,pos,cursorScreen);
+      if(scene.debug)this.drawDebug(pet,scene.decisions[pet.id],pos);
+    }
+  }
+
+  hitTest(pet:PetState,point:Vec2,bounds:Rect):boolean{
+    const profile=SPECIES[pet.species].movement,s=1.3;
+    const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y;
+    return point.x>=x-profile.bodyWidth*s/2&&point.x<=x+profile.bodyWidth*s/2&&point.y>=y-profile.bodyHeight*s&&point.y<=y+8;
+  }
+
+  private drawPet(p:PetState,a:PetAppearance,pos:Vec2,cursorScreen:Vec2):void{
+    const c=this.ctx,t=performance.now(),phase=hash01(p.id)*10000;
+    const mv=SPECIES[p.species].movement;
+
+    const was=this.wasGrounded.get(p.id);
+    if(was===false&&p.body.grounded){
+      this.landing.set(p.id,{at:t,vy:this.pendingVy.get(p.id)??0});
+      this.pendingVy.delete(p.id);
+    }
+    this.wasGrounded.set(p.id,p.body.grounded);
+    if(!p.body.grounded)this.pendingVy.set(p.id,Math.max(this.pendingVy.get(p.id)??0,Math.abs(p.body.velocity.y)));
+
+    const pose=this.poseFor(p,t,phase,cursorScreen);
+
+    if(p.body.grounded&&!pose.peeking){
+      c.fillStyle="rgba(0,0,0,.18)";
+      c.beginPath();c.ellipse(pos.x,pos.y+1,mv.bodyWidth*.44,3.5,0,0,TAU);c.fill();
+    }
+    if(pose.speedLines){
+      c.strokeStyle="rgba(180,190,210,.5)";c.lineWidth=2;c.lineCap="round";
+      for(let i=0;i<3;i++){
+        const y=pos.y-mv.bodyHeight*.45-i*7,x1=pos.x-p.body.facing*(mv.bodyWidth*.55+i*8);
+        c.globalAlpha=.42-i*.12;c.beginPath();c.moveTo(x1,y);c.lineTo(x1-p.body.facing*(12+i*5),y);c.stroke();
+      }
+      c.globalAlpha=1;
+    }
+
+    let sy=1,sx=1;
+    if(!p.body.grounded){sy=Math.min(1.16,1+Math.abs(p.body.velocity.y)*.00045);sx=Math.pow(sy,-.7);}
+    const land=this.landing.get(p.id);
+    if(land){
+      const age=t-land.at;
+      if(age<220){const q=(1-age/220)*Math.min(1,(land.vy-260)/900+.25);sy*=1-q*.3;sx*=1+q*.24;}
+      else this.landing.delete(p.id);
+    }
+
+    c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*a.scale,sy*a.scale);
+    if(p.species==="bird")this.bird(p,a,pose,t);
+    else this.mammal(p,a,pose,t,SHAPES[p.species]!);
+    c.restore();
+
+    if(pose.zzz){
+      c.textAlign="left";
+      for(let i=0;i<3;i++){
+        const prog=((t/1300)+i/3)%1;
+        c.globalAlpha=(1-prog)*.6;
+        c.fillStyle="#cfd8ec";
+        c.font=`bold ${8+i*3}px ui-monospace,monospace`;
+        c.fillText("z",pos.x+mv.bodyWidth*.28+prog*12,pos.y-24-prog*20-i*4);
+      }
+      c.globalAlpha=1;
+    }
+    if(p.behavior==="startle"&&t-p.behaviorSinceMs<900){
+      c.globalAlpha=1-(t-p.behaviorSinceMs)/900;
+      c.fillStyle="#ffd76e";c.font="bold 14px ui-monospace,monospace";c.textAlign="center";
+      c.fillText("!",pos.x+p.body.facing*10,pos.y-mv.bodyHeight-14-Math.sin((t-p.behaviorSinceMs)/120)*2);
+      c.globalAlpha=1;c.textAlign="left";
+    }
+    if(land){
+      const age=t-land.at;
+      if(age<260&&land.vy>320){
+        c.fillStyle="rgb(200,205,220)";
+        const k=age/260;
+        for(let i=0;i<3;i++){
+          c.globalAlpha=(1-k)*.35;
+          c.beginPath();c.arc(pos.x+(i-1)*7*k*3,pos.y-1-k*3,1.5+k*4,0,TAU);c.fill();
+        }
+        c.globalAlpha=1;
+      }
+    }
+  }
+
+  private poseFor(p:PetState,t:number,phase:number,cursorScreen:Vec2):Pose{
+    const b=p.behavior;
+    const speed=Math.abs(p.body.velocity.x);
+    const fast=speed>110,walking=speed>8&&!fast;
+    const airborne=!p.body.grounded;
+    const sleeping=b==="sleep"||b==="cuddle";
+
+    let eyeOpen=sleeping?0:((t/3400+phase/997)%1)>.96?.08:1;
+    if(b==="startle")eyeOpen=1;
+    if(b==="hide")eyeOpen=Math.min(eyeOpen,.55);
+
+    let pupilX=0,pupilY=0;
+    if(!sleeping){
+      if(b==="idle"||b==="sit"||b==="perch"){pupilX=Math.sin(t/2300+phase)*.6;pupilY=Math.sin(t/3100+phase*2)*.2;}
+      else if(b==="peek"){pupilX=Math.sin(t/900+phase)>.4?.9:-.9;}
+      else if(b!=="walk"){
+        const dx=cursorScreen.x-p.body.position.x,dy=cursorScreen.y-(p.body.position.y-SPECIES[p.species].movement.bodyHeight);
+        const d=Math.hypot(dx,dy)||1;
+        if(d<340){pupilX=Math.max(-1,Math.min(1,dx/240));pupilY=Math.max(-1,Math.min(1,dy/240));}
+      }
+    }
+
+    const earTwitch=((t/2900+phase/777)%1)<.05?2:0;
+    const happy=["play_pet","play_fight","play_toy","greet_pet","zoomies","seek_user","carry_toy"].includes(b);
+    const scared=b==="startle"||p.affect.stress>.6;
+
+    return{
+      lying:sleeping,
+      sitting:b==="sit",
+      vertical:b==="climb",
+      hanging:b==="hang",
+      peeking:b==="peek",
+      crouch:b==="stalk"?.85:b==="hide"?.9:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
+      bow:["stretch","play_pet","play_fight"].includes(b)?1:b==="greet_pet"?.55:0,
+      arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
+      headDip:(b==="eat"||b==="drink")?.9:(b==="investigate"&&p.body.grounded?.5:0),
+      headBob:(b==="eat"||b==="drink")?Math.sin(t/170)*2*Math.min(1,speed<8?1:.3):b==="groom"?Math.sin(t/150)*2.5:0,
+      eyeOpen,pupilX,pupilY,
+      earBack:scared?1:(p.affect.stress>.35?.5:0),
+      earTwitch,
+      tailLift:happy?1:scared?-1:.3,
+      tailWagAmp:happy?8:p.affect.valence>.35?5:3,
+      tailFast:happy||p.affect.arousal>.7,
+      gait:(t+phase)/(fast?80:140),
+      legAmp:airborne?0:fast?4:walking?3:0,
+      bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0),
+      flap:p.species==="bird"?(airborne?Math.sin(t/70):(b==="zoomies"?Math.sin(t/160)*.5:Math.sin(t/300)*.15)):0,
+      preen:b==="groom"&&p.species==="bird"&&Math.sin(t/700)>.3,
+      zzz:sleeping,
+      speedLines:fast&&!airborne&&(b==="zoomies"||speed>150),
+      puff:b==="startle",
+      carry:b==="carry_toy",
+      pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0)
+    };
+  }
+
+  private mammal(p:PetState,a:PetAppearance,pose:Pose,t:number,m:MammalShape):void{
     const c=this.ctx;
-    if(sleeping){
-      const chest=Math.sin(t/600)*1.5;
-      c.fillStyle=a.coat;c.fillRect(-20,-18,38,16+chest);c.fillRect(-14,-24,17,12);
-      c.fillStyle=a.accent;c.fillRect(-18,-21,4,5);c.fillRect(-3,-21,4,5);
+    const coat=a.coat,dark=shade(a.coat,.72);
+
+    if(pose.peeking){
+      const bob=Math.sin(t/600)*1.5;
+      this.ears(c,a,m,-m.headR*.62,-m.headR-6+bob,pose,false,t);
+      c.fillStyle=coat;c.beginPath();c.arc(0,-7+bob,m.headR,0,TAU);c.fill();
+      this.face(c,a,m,{...pose,pupilX:Math.sign(p.body.facing)*.9},0,-7+bob);
+      c.fillStyle=a.accent;
+      c.beginPath();c.ellipse(-m.headR*.32,0,3.5,2.5,0,0,TAU);c.ellipse(m.headR*.3,0,3.5,2.5,0,0,TAU);c.fill();
       return;
     }
-    const tailSway=Math.sin(t/400)*4;
-    c.fillStyle=a.coat;c.fillRect(-20,-30,38,23);c.fillRect(8,-42,24,21);
-    c.fillRect(-29,-26+tailSway*.5,11,8);c.fillRect(-35,-31+tailSway,8,6);
-    c.fillRect(12,-50+earTwitch,7,11);c.fillRect(25,-50+earTwitch,7,11);
-    if(moving){const legOffset=Math.sin(gait)*3;
-      c.fillRect(-14,-9,7,10+legOffset);c.fillRect(8,-9,7,10-legOffset);}
-    else{c.fillRect(-14,-9,7,10);c.fillRect(8,-9,7,10);}
-    c.fillStyle=a.accent;c.fillRect(14,-37,15,11);
-    c.fillStyle=a.eye;c.globalAlpha=blink;
-    c.fillRect(18,-37,3,3);c.fillRect(26,-37,3,3);
-    c.globalAlpha=1;
-    if(["chase_cursor","pounce","zoomies"].includes(p.behavior)){
-      c.fillStyle="#111";c.fillRect(19,-37,1,4);c.fillRect(27,-37,1,4);
+    if(pose.hanging){
+      c.rotate(Math.sin(t/480)*.09);
+      c.fillStyle=coat;
+      c.beginPath();c.ellipse(-3.5,0,3.5,3,0,0,TAU);c.ellipse(3.5,0,3.5,3,0,0,TAU);c.fill();
+      this.tail(c,a,pose,m,t,{x:-3,y:m.bodyLen*.42},true);
+      c.beginPath();c.moveTo(-6,0);c.quadraticCurveTo(-9,m.bodyLen*.4,-5,m.bodyLen*.78);
+      c.lineTo(m.bodyLen*.14,m.bodyLen*.78);c.quadraticCurveTo(m.bodyLen*.26,m.bodyLen*.35,7,0);c.closePath();c.fill();
+      c.fillStyle=coat;c.beginPath();c.arc(2,-m.headR*.35,m.headR*.92,0,TAU);c.fill();
+      this.ears(c,a,m,-m.headR*.55,-m.headR*.35-m.headR,pose,false,t);
+      this.face(c,a,m,{...pose,pupilY:.8},2,-m.headR*.35);
+      return;
+    }
+    if(pose.vertical)c.rotate(-Math.PI/2);
+
+    const crouch=pose.crouch;
+    const bodyH=m.bodyH*(1-crouch*.3),legH=m.legH*(1-crouch*.45);
+    const yTop=-(legH+bodyH),yBot=-legH;
+
+    if(pose.arch>0){c.translate(0,-4*pose.arch);c.rotate(-.17*pose.arch);}
+
+    this.tail(c,a,pose,m,t,{x:-m.bodyLen*.52,y:yBot-bodyH*.35},false);
+
+    const legOff=[Math.sin(pose.gait),Math.cos(pose.gait),Math.cos(pose.gait),Math.sin(pose.gait)];
+    const legXs=[-m.bodyLen*.46,-m.bodyLen*.24,m.bodyLen*.16,m.bodyLen*.4];
+    c.fillStyle=dark;
+    for(let i=0;i<4;i++){
+      const lift=Math.max(0,legOff[i]!)*pose.legAmp;
+      c.fillRect(legXs[i]!,yBot-legH+lift*.4,m.legW,legH-lift*.4);
+    }
+
+    if(pose.sitting){
+      c.fillStyle=coat;
+      c.beginPath();c.ellipse(-m.bodyLen*.16,yBot-bodyH*.42,m.bodyLen*.36,bodyH*.66,0,0,TAU);c.fill();
+      c.fillRect(m.bodyLen*.04,yTop-bodyH*.18,m.bodyLen*.26,bodyH*1.02);
+      c.fillStyle=a.accent;
+      c.beginPath();c.ellipse(m.bodyLen*.16,-legH*.55,m.bodyLen*.09,legH*.5,0,0,TAU);c.fill();
+    }else if(pose.lying){
+      c.fillStyle=coat;
+      c.beginPath();c.ellipse(0,yBot-2,m.bodyLen*.56,bodyH*.5,0,0,TAU);c.fill();
+      c.fillStyle=a.accent;
+      c.beginPath();c.ellipse(m.bodyLen*.22,yBot-2,m.bodyLen*.18,bodyH*.22,0,0,TAU);c.fill();
+    }else{
+      c.fillStyle=coat;
+      this.rr(c,-m.bodyLen*.52,yTop+crouch*7,m.bodyLen+4,bodyH,bodyH*.45);
+      c.fillStyle=a.accent;
+      c.beginPath();c.ellipse(m.bodyLen*.24,yTop+crouch*7+bodyH*.68,m.bodyLen*.15,bodyH*.28,0,0,TAU);c.fill();
+    }
+
+    if(pose.puff){
+      c.fillStyle=shade(a.coat,1.28);
+      for(let i=0;i<5;i++)this.tri(c,-m.bodyLen*.4+i*m.bodyLen*.18,yTop+crouch*7-1,-m.bodyLen*.34+i*m.bodyLen*.18,yTop+crouch*7-7,-m.bodyLen*.28+i*m.bodyLen*.18,yTop+crouch*7-1,shade(a.coat,1.28));
+    }
+
+    if(!pose.lying&&!pose.sitting){
+      c.fillStyle=coat;
+      for(let i=0;i<4;i++){
+        const lift=Math.max(0,legOff[i]!)*pose.legAmp;
+        c.fillRect(legXs[i]!,yBot-legH+lift,m.legW,legH-lift);
+      }
+    }
+    if(pose.pawReach>0&&!pose.lying&&!pose.sitting){
+      const reach=pose.pawReach*6;
+      c.fillStyle=coat;
+      c.fillRect(m.bodyLen*.32,yTop-bodyH*.15-reach,m.legW,legH*.85+reach);
+    }
+
+    const headPos=this.mammalHead(pose,m,yTop);
+    c.save();
+    if(pose.bow>0)c.rotate(.3*pose.bow);
+    c.translate(headPos.x,headPos.y+pose.headBob);
+    if(pose.arch>0)c.rotate(-.12);
+    this.ears(c,a,m,-m.headR*.5,-m.headR-3,pose,true,t);
+    c.fillStyle=coat;c.beginPath();c.arc(0,0,m.headR,0,TAU);c.fill();
+    this.face(c,a,m,pose,m.snout*.4,-m.headR*.15);
+    c.restore();
+
+    if(pose.carry){
+      c.fillStyle="#d85b58";
+      c.beginPath();c.arc(headPos.x+m.headR*.8,headPos.y+m.headR*.4,4.2,0,TAU);c.fill();
     }
   }
-  private dog(p:PetState,a:PetAppearance,t:number,gait:number,moving:boolean,sleeping:boolean,blink:number):void{
-    const c=this.ctx;
-    if(sleeping){c.fillStyle=a.coat;c.fillRect(-23,-18,42,16);c.fillRect(-14,-24,19,12);
-      c.fillStyle=a.accent;c.fillRect(-18,-21,4,5);c.fillRect(-2,-21,4,5);return;}
-    const tailWag=Math.sin(t/(moving?150:300))*6;
-    c.fillStyle=a.coat;c.fillRect(-23,-31,42,24);c.fillRect(7,-42,28,23);
-    c.fillRect(-31,-26+tailWag*.4,10,8);
-    c.fillStyle=a.accent;c.fillRect(9,-48,9,17);c.fillRect(29,-47,8,16);
-    c.fillRect(27,-34,14,9);
-    if(moving){const legOffset=Math.sin(gait)*3.5;
-      c.fillStyle=a.coat;c.fillRect(-15,-9,8,11+legOffset);c.fillRect(9,-9,8,11-legOffset);}
-    else{c.fillStyle=a.coat;c.fillRect(-15,-9,8,11);c.fillRect(9,-9,8,11);}
-    c.fillStyle=a.eye;c.globalAlpha=blink;c.fillRect(26,-39,3,3);c.globalAlpha=1;
+
+  private mammalHead(pose:Pose,m:MammalShape,yTop:number):Vec2{
+    if(pose.lying)return{x:-m.bodyLen*.42,y:-m.legH-m.bodyH*.3};
+    if(pose.sitting)return{x:m.bodyLen*.26,y:yTop-m.bodyH*.05};
+    let x=m.headX*.8+pose.crouch*7,y=yTop+m.headR*.3+pose.crouch*11;
+    if(pose.headDip>0){x+=pose.headDip*8;y+=pose.headDip*(m.bodyH*.55);}
+    return{x,y};
   }
-  private rabbit(p:PetState,a:PetAppearance,t:number,gait:number,moving:boolean,sleeping:boolean,blink:number,earTwitch:number):void{
-    const c=this.ctx;
-    if(sleeping){c.fillStyle=a.coat;c.fillRect(-19,-18,34,16);c.fillRect(-10,-24,17,12);
-      c.fillStyle=a.accent;c.fillRect(-14,-21,4,5);c.fillRect(-2,-21,4,5);return;}
-    c.fillStyle=a.coat;c.fillRect(-19,-27,34,20);c.fillRect(7,-39,22,20);
-    c.fillRect(10,-61+earTwitch,7,24);c.fillRect(21,-62+earTwitch,7,25);
-    c.fillStyle=a.accent;c.fillRect(12,-58,3,17);c.fillRect(23,-59,3,18);
-    c.fillRect(-27,-23,9,9);c.fillStyle=a.eye;c.globalAlpha=blink;c.fillRect(22,-35,3,3);c.globalAlpha=1;
-    if(moving){const hop=Math.sin(gait*1.5)*2;
-      c.fillStyle=a.coat;c.fillRect(-19,-27-hop,34,20);}
+
+  private ears(c:CanvasRenderingContext2D,a:PetAppearance,m:MammalShape,x:number,y:number,pose:Pose,_onHead:boolean,t:number):void{
+    const coat=a.coat,inner=a.accent,flat=pose.earBack;
+    const tw=pose.earTwitch*Math.sin(t/60)>0?pose.earTwitch:0;
+    if(m.ear==="point"){
+      c.save();c.translate(x+4,y+7);c.rotate(-.14-flat*.5);c.translate(-(x+4),-(y+7));
+      this.tri(c,x,y+7,x+4,y-6-tw,x+9,y+5,coat);
+      this.tri(c,x+2,y+4,x+4.4,y-1-tw,x+7,y+3,inner);
+      c.restore();
+      c.save();c.translate(x+13,y+7);c.rotate(.14+flat*.5);c.translate(-(x+13),-(y+7));
+      this.tri(c,x+9,y+6,x+15,y-5-tw,x+19,y+7,coat);
+      this.tri(c,x+11,y+3,x+14.4,y-tw,x+17,y+4,inner);
+      c.restore();
+    }else if(m.ear==="floppy"){
+      const flop=shade(a.coat,.82);
+      c.save();c.translate(x+2,y+5);c.rotate(-.08-flat*.95);
+      c.fillStyle=flop;this.rr(c,-2,-2,6,13,3);
+      c.restore();
+      c.save();c.translate(x+15,y+5);c.rotate(.08+flat*.95);
+      c.fillStyle=flop;this.rr(c,9,-2,6,13,3);
+      c.restore();
+    }else{
+      c.save();c.translate(x+3,y+8);c.rotate(-.1-flat*.75);
+      c.fillStyle=coat;this.rr(c,x-1,y-17-tw,6,25,3);
+      c.fillStyle=inner;this.rr(c,x+.5,y-14-tw,3.2,18,1.8);
+      c.restore();
+      c.save();c.translate(x+14,y+8);c.rotate(.1+flat*.75);
+      c.fillStyle=coat;this.rr(c,x+11,y-18-tw,6,26,3);
+      c.fillStyle=inner;this.rr(c,x+12.5,y-15-tw,3.2,19,1.8);
+      c.restore();
+    }
   }
-  private bird(p:PetState,a:PetAppearance,t:number,moving:boolean,sleeping:boolean):void{
-    const c=this.ctx;
-    if(sleeping){c.fillStyle=a.coat;c.fillRect(-15,-20,28,18);c.fillRect(7,-28,17,14);
-      c.fillStyle=a.accent;c.fillRect(-5,-20,10,10);return;}
-    const flap=moving?Math.sin(t/55)*7:Math.sin(t/300)*1.5;
-    c.fillStyle=a.coat;c.fillRect(-15,-28,28,22);c.fillRect(7,-36,17,16);
-    c.fillRect(-24,-25,11,6);
-    c.fillStyle=a.accent;c.fillRect(-5,-28,10,12);
-    c.fillRect(-10,-25-flap,7,13);
-    c.fillStyle="#e0a64a";c.fillRect(23,-31,9,5);
-    c.fillStyle=a.eye;c.fillRect(17,-33,3,3);
-    c.fillStyle="#9a7448";c.fillRect(-3,-7,3,8);c.fillRect(7,-7,3,8);
+
+  private face(c:CanvasRenderingContext2D,a:PetAppearance,m:MammalShape,pose:Pose,cx:number,cy:number):void{
+    const eyeY=cy-1,ex1=cx-m.headR*.44,ex2=cx+m.headR*.3;
+    this.eye(c,ex1,eyeY,3.2,pose.eyeOpen,pose.pupilX,pose.pupilY,a.eye);
+    this.eye(c,ex2,eyeY,3.2,pose.eyeOpen,pose.pupilX,pose.pupilY,a.eye);
+    c.fillStyle="#4a342a";
+    c.beginPath();c.arc(cx+m.headR*.58,cy+2,1.9,0,TAU);c.fill();
+    if(m.snout>3){
+      c.fillStyle=a.accent;
+      c.beginPath();c.ellipse(cx+m.headR*.52,cy+3.6,m.snout*.8,2.7,0,0,TAU);c.fill();
+    }
+    if(pose.eyeOpen>.2&&m.snout<=4){
+      c.strokeStyle="rgba(255,255,255,.4)";c.lineWidth=.8;
+      c.beginPath();
+      c.moveTo(cx-m.headR*.05,cy+4);c.lineTo(cx-m.headR*.55,cy+5.5);
+      c.moveTo(cx-m.headR*.05,cy+5.5);c.lineTo(cx-m.headR*.6,cy+8);
+      c.stroke();
+    }
   }
-  private drawObject(o:WorldObject,p:Vec2):void{const c=this.ctx;if(o.kind==="ball"){c.beginPath();c.arc(p.x,p.y,o.radius,0,Math.PI*2);c.fillStyle="#d85b58";c.fill();}else if(o.kind==="bed"){c.fillStyle="#725b92";c.fillRect(p.x-o.radius,p.y-o.radius/2,o.radius*2,o.radius);c.fillStyle="#a58cc5";c.fillRect(p.x-o.radius*.7,p.y-o.radius*.36,o.radius*1.4,o.radius*.55);}else if(o.kind==="box"){c.fillStyle="#b9854d";c.fillRect(p.x-o.radius,p.y-o.radius,o.radius*2,o.radius*2);c.fillStyle="#8b6036";c.fillRect(p.x-o.radius*.55,p.y-o.radius*.55,o.radius*1.1,o.radius*.6);}else if(o.kind==="bowl"){c.fillStyle=o.contents==="water"?"#5f9fc8":"#b9654d";c.fillRect(p.x-o.radius,p.y-5,o.radius*2,9);c.fillStyle=o.contents==="water"?"#9ad7ee":"#d9a45f";c.fillRect(p.x-o.radius*.7,p.y-7,o.radius*1.4,4);}else if(o.kind==="scratcher"){c.fillStyle="#805a3e";c.fillRect(p.x-4,p.y-o.radius*2,8,o.radius*2);c.fillStyle="#a67a54";c.fillRect(p.x-o.radius,p.y-5,o.radius*2,7);c.fillRect(p.x-10,p.y-o.radius*2,20,5);}}
-  private drawDebug(p:PetState,d:RenderScene["decisions"][string]|undefined,pos:Vec2):void{const c=this.ctx;c.save();c.font="11px ui-monospace, monospace";const text=`${p.name} • ${p.behavior} • F${p.drives.fatigue.toFixed(2)} P${p.drives.play.toFixed(2)}`;c.fillStyle="rgba(10,12,18,.78)";c.fillRect(pos.x-5,pos.y-79,Math.max(190,text.length*6.4),34);c.fillStyle="#f5f7ff";c.fillText(text,pos.x,pos.y-64);if(d){c.fillStyle="#aab2ca";c.fillText(d.reason.slice(0,42),pos.x,pos.y-51);}c.restore();}
+
+  private eye(c:CanvasRenderingContext2D,x:number,y:number,r:number,open:number,px:number,py:number,color:string):void{
+    if(open<.15){
+      c.strokeStyle="#20242e";c.lineWidth=1.4;
+      c.beginPath();c.moveTo(x-r,y);c.lineTo(x+r,y);c.stroke();
+      return;
+    }
+    const h=r*open;
+    c.fillStyle=color;
+    c.beginPath();c.ellipse(x,y,r*.85,h,0,0,TAU);c.fill();
+    c.fillStyle="#171a22";
+    c.beginPath();c.ellipse(x+px*r*.4,y+py*h*.4,r*.42,h*.72,0,0,TAU);c.fill();
+    c.fillStyle="rgba(255,255,255,.9)";
+    c.beginPath();c.arc(x-r*.3-r*.15*px,y-h*.3,Math.max(.8,r*.24),0,TAU);c.fill();
+  }
+
+  private tail(c:CanvasRenderingContext2D,a:PetAppearance,pose:Pose,m:MammalShape,t:number,base:Vec2,hanging:boolean):void{
+    const coat=a.coat;
+    if(m.tail==="puff"){
+      c.fillStyle=a.accent;
+      c.beginPath();c.arc(base.x-3,base.y-3,4.5,0,TAU);c.fill();
+      return;
+    }
+    if(m.tail==="stick"){
+      const wag=Math.sin(t/(pose.tailFast?110:300))*(pose.tailFast?1:.45);
+      c.strokeStyle=coat;c.lineWidth=4.5;c.lineCap="round";
+      const up=pose.lying?-2:(pose.tailLift>=0?-14:-5);
+      const tip={x:base.x-13+wag*5,y:base.y+up};
+      c.beginPath();c.moveTo(base.x,base.y);
+      c.quadraticCurveTo(base.x-8,base.y+up*.4,tip.x,tip.y);
+      c.stroke();
+      c.fillStyle=a.accent;c.beginPath();c.arc(tip.x,tip.y,3,0,TAU);c.fill();
+      return;
+    }
+    const sway=Math.sin(t/(pose.tailFast?170:380))*(pose.tailFast?7:4);
+    const lift=pose.tailLift;
+    const endY=hanging?base.y+10:base.y-20-lift*16;
+    c.strokeStyle=pose.puff?shade(a.coat,1.3):coat;
+    c.lineWidth=pose.puff?7:5;c.lineCap="round";
+    c.beginPath();c.moveTo(base.x,base.y);
+    c.quadraticCurveTo(base.x-10,base.y-6-lift*4,base.x-16-sway*.4,base.y-10-lift*8+(hanging?12:0));
+    c.quadraticCurveTo(base.x-20,base.y-16-lift*10+(hanging?16:0),base.x-14-sway,endY);
+    c.stroke();
+    c.fillStyle=a.accent;c.beginPath();c.arc(base.x-14-sway,endY,2.6,0,TAU);c.fill();
+  }
+
+  private bird(p:PetState,a:PetAppearance,pose:Pose,t:number):void{
+    const c=this.ctx;
+    const coat=a.coat,dark=shade(a.coat,.72),beak="#e0a64a";
+    const breathe=pose.lying?Math.sin(t/500)*.06:0;
+
+    if(!pose.lying&&p.body.grounded){
+      c.strokeStyle="#9a7448";c.lineWidth=1.6;
+      c.beginPath();c.moveTo(-3,-6);c.lineTo(-3,0);c.moveTo(3,-6);c.lineTo(3,0);c.stroke();
+      c.beginPath();c.moveTo(-6,0);c.lineTo(0,0);c.moveTo(0,0);c.lineTo(6,0);c.stroke();
+    }
+    c.save();
+    if(pose.preen)c.rotate(.5);
+    if(pose.lying){
+      c.fillStyle=coat;
+      c.beginPath();c.ellipse(0,-8,12,9*(1+breathe),0,0,TAU);c.fill();
+      c.beginPath();c.arc(-4,-14,7,0,TAU);c.fill();
+      c.strokeStyle="#20242e";c.lineWidth=1.3;
+      c.beginPath();c.moveTo(-7,-15);c.lineTo(-2,-15);c.stroke();
+      c.restore();return;
+    }
+    c.translate(0,-pose.bounce);
+    c.fillStyle=dark;
+    this.tri(c,-7,-17,-19,-11+pose.flap*3,-8,-7,coat);
+    c.fillStyle=coat;
+    c.beginPath();c.ellipse(0,-15,11,14*(1+breathe*.4),pose.flap*.06,0,TAU);c.fill();
+    c.fillStyle=a.accent;
+    c.beginPath();c.ellipse(1,-11,6.5,8,0,0,TAU);c.fill();
+    const flying=!p.body.grounded;
+    if(flying||Math.abs(pose.flap)>.3){
+      c.save();c.translate(-2,-18);c.rotate(-.5+pose.flap*.9);
+      c.fillStyle=dark;c.beginPath();c.ellipse(-6,0,10,4.5,0,0,TAU);c.fill();
+      c.restore();
+    }else{
+      c.fillStyle=dark;
+      c.beginPath();c.ellipse(-2,-15,5,8,.25,0,TAU);c.fill();
+    }
+    c.fillStyle=coat;
+    c.beginPath();c.arc(3,-27,7.5,0,TAU);c.fill();
+    this.tri(c,9,-29,16,-26.5,9,-24,beak);
+    this.tri(c,0,-33,2,-37,4,-32,shade(a.coat,1.25));
+    this.eye(c,5,-28,2.6,pose.eyeOpen,pose.pupilX,pose.pupilY,a.eye);
+    c.restore();
+  }
+
+  private rr(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,rad:number):void{
+    const r=Math.min(rad,w/2,h/2);
+    c.beginPath();
+    c.moveTo(x+r,y);
+    c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);
+    c.closePath();c.fill();
+  }
+  private tri(c:CanvasRenderingContext2D,x1:number,y1:number,x2:number,y2:number,x3:number,y3:number,color:string):void{
+    c.fillStyle=color;c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.lineTo(x3,y3);c.closePath();c.fill();
+  }
+
+  private drawObject(o:WorldObject,p:Vec2):void{
+    const c=this.ctx;
+    if(o.kind==="ball"){
+      c.fillStyle="#b94846";c.beginPath();c.ellipse(p.x,p.y,o.radius,o.radius*.92,0,0,TAU);c.fill();
+      c.fillStyle="#d85b58";c.beginPath();c.ellipse(p.x-o.radius*.25,p.y-o.radius*.3,o.radius*.55,o.radius*.45,0,0,TAU);c.fill();
+      c.fillStyle="rgba(255,255,255,.55)";c.beginPath();c.arc(p.x-o.radius*.35,p.y-o.radius*.42,o.radius*.16,0,TAU);c.fill();
+    }else if(o.kind==="bed"){
+      c.fillStyle="rgba(0,0,0,.15)";c.beginPath();c.ellipse(p.x,p.y,o.radius,o.radius*.3,0,0,TAU);c.fill();
+      c.fillStyle="#725b92";c.beginPath();c.ellipse(p.x,p.y-3,o.radius,o.radius*.42,0,0,TAU);c.fill();
+      c.fillStyle="#a58cc5";c.beginPath();c.ellipse(p.x,p.y-5,o.radius*.72,o.radius*.26,0,0,TAU);c.fill();
+    }else if(o.kind==="box"){
+      c.fillStyle="rgba(0,0,0,.15)";c.fillRect(p.x-o.radius,p.y-2,o.radius*2,3);
+      c.fillStyle="#b9854d";c.fillRect(p.x-o.radius,p.y-o.radius*1.6,o.radius*2,o.radius*1.6);
+      c.fillStyle="#8b6036";c.fillRect(p.x-o.radius,p.y-o.radius*1.6,o.radius*2,4);
+      c.fillStyle="#a5713f";c.fillRect(p.x-o.radius*.55,p.y-o.radius*.9,o.radius*.35,o.radius*.9);
+    }else if(o.kind==="bowl"){
+      c.fillStyle=o.contents==="water"?"#5f9fc8":"#b9654d";
+      c.beginPath();c.moveTo(p.x-o.radius,p.y-8);c.lineTo(p.x+o.radius,p.y-8);c.lineTo(p.x+o.radius*.7,p.y);c.lineTo(p.x-o.radius*.7,p.y);c.closePath();c.fill();
+      c.fillStyle=o.contents==="water"?"#9ad7ee":"#d9a45f";
+      c.beginPath();c.ellipse(p.x,p.y-8,o.radius*.78,2.6,0,0,TAU);c.fill();
+    }else if(o.kind==="scratcher"){
+      c.fillStyle="#805a3e";c.fillRect(p.x-4,p.y-o.radius*2,8,o.radius*2);
+      c.fillStyle="#a67a54";c.fillRect(p.x-o.radius,p.y-5,o.radius*2,7);
+      c.fillRect(p.x-10,p.y-o.radius*2,20,5);
+    }else{
+      c.fillStyle="#888";c.beginPath();c.arc(p.x,p.y,o.radius,0,TAU);c.fill();
+    }
+  }
+
+  private drawDebug(p:PetState,d:RenderScene["decisions"][string]|undefined,pos:Vec2):void{
+    const c=this.ctx;c.save();c.font="11px ui-monospace, monospace";
+    const text=`${p.name} • ${p.behavior} • F${p.drives.fatigue.toFixed(2)} P${p.drives.play.toFixed(2)}`;
+    c.fillStyle="rgba(10,12,18,.78)";c.fillRect(pos.x-5,pos.y-79,Math.max(190,text.length*6.4),34);
+    c.fillStyle="#f5f7ff";c.fillText(text,pos.x,pos.y-64);
+    if(d){c.fillStyle="#aab2ca";c.fillText(d.reason.slice(0,42),pos.x,pos.y-51);}
+    c.restore();
+  }
 }
