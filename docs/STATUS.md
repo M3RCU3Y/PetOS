@@ -4,7 +4,8 @@
 
 - TypeScript strict compilation
 - static web build
-- 58 deterministic engine tests
+- 71 deterministic engine tests
+- **full release bundle**: `npm run tauri:build` produces `PetOS_0.2.0_x64_en-US.msi` (5.8 MB) and `PetOS_0.2.0_x64-setup.exe` (3.8 MB) — unsigned, ready for local install testing
 - headless behavior simulation (walk → stalk → groom → investigate arcs)
 - save/restore memory path (including toy prefs, rich relationships, diary, routines)
 - multi-pet simulation path
@@ -61,6 +62,7 @@ state (`OpenInputDesktop`).
 - [x] climb-aware surface pathfinding (cats route up walls beyond jump range)
 - [x] per-pixel hit testing for interaction clicks
 - [x] automated nightmare-QA stress test (monitor unplug, window snaps, explorer restart) in `tests/stress.test.mjs`
+- [x] installer bundling verified end-to-end (MSI + NSIS artifacts built locally)
 - [ ] production sprite packs / real-pet morphology mapping beyond palette + markings classification
-- [ ] signed installer/release packaging (updater needs signing keys + endpoint)
+- [ ] signed installers + update endpoint (artifacts build unsigned; updater needs signing keys)
 - [ ] SQLite persistence backend (JSON store is durable + migration-ready)
