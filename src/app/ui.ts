@@ -1,5 +1,6 @@
 import { extractPalette } from "./photo.js";
 import { computeSocialEdges, renderSocialGraph } from "./social.js";
+import { BrowserPersistence } from "../core/persistence.js";
 import { BUILTIN_PACKS, validatePack, type PetPack } from "../core/packs.js";
 import { SPECIES } from "../core/species.js";
 import type { PetOSSettings, Species } from "../core/types.js";
@@ -50,8 +51,10 @@ export class SettingsUI {
   private packSelect:HTMLSelectElement;
   private lifeLog:HTMLElement;
   private customPacks:PetPack[]=[];
+  private persistence:BrowserPersistence|null=null;
   private creatorState:CreatorState = { species:"cat", name:"", coat:"#d98742", accent:"#f2c287", eye:"#d7ef76", personality:{} };
-  constructor(private readonly actions:UIActions,settings:PetOSSettings){
+  constructor(private readonly actions:UIActions,settings:PetOSSettings,persistence?:BrowserPersistence){
+    this.persistence=persistence??null;
     this.panel=document.querySelector("#settings-panel")!;this.backdrop=document.querySelector("#settings-backdrop")!;this.petList=document.querySelector("#pet-list")!;this.packSelect=document.querySelector("#pack-select")!;this.lifeLog=document.querySelector("#life-log")!;
     this.renderPacks();
     this.bind(settings);

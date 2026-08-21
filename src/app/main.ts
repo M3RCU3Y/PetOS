@@ -74,7 +74,7 @@ const ui=new SettingsUI({
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onReset(){persistence.clear();location.reload();},
   onCreateCustomPet(config){const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const pet=new Pet({id:crypto.randomUUID(),name:config.name,species:config.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:config.personality});sim.addPet(pet,config.appearance);persist();}
-},settings);
+},settings,persistence);
 
 void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);void bridge.onSettingsRequested(()=>ui.open());
 
