@@ -28,7 +28,8 @@ const ui=new SettingsUI({
   onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const objectKind=kind==="food"||kind==="water"?"bowl":kind;const radius=kind==="bed"?38:kind==="box"?34:kind==="scratcher"?25:kind==="ball"?11:18;sim.addObject({id:crypto.randomUUID(),kind:objectKind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{}),...((kind==="food"||kind==="water")?{contents:kind}:{})});persist();},
   onPrivacyLevel(level){settings.privacyLevel=level;persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
-  onReset(){persistence.clear();location.reload();}
+  onReset(){persistence.clear();location.reload();},
+  onCreateCustomPet(config){const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const pet=new Pet({id:crypto.randomUUID(),name:config.name,species:config.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:config.personality});sim.addPet(pet,config.appearance);persist();}
 },settings);
 
 void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);void bridge.onSettingsRequested(()=>ui.open());
