@@ -183,6 +183,8 @@ export interface PetState {
   ageSeconds: number;
   bond: number;
   lastInteractionMs: number;
+  /** When the pet moved in — anniversaries are celebrated. */
+  adoptedAtMs: number;
   frustration: number;
   boredom: number;
   novelty: number;

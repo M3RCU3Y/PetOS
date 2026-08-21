@@ -1,4 +1,5 @@
 import { SPECIES } from "../core/species.js";
+import { isAdoptionAnniversary } from "../core/pet.js";
 import type { WeatherKind } from "../core/weather.js";
 import type { Behavior, PetAppearance, PetState, Rect, SheetAnimation, Species, SpriteSheet, Vec2, WorldObject } from "../core/types.js";
 
@@ -11,6 +12,7 @@ interface Pose {
   tailLift:number; tailWagAmp:number; tailFast:boolean;
   gait:number; legAmp:number; bounce:number; flap:number; preen:boolean;
   zzz:boolean; speedLines:boolean; puff:boolean; carry:boolean; pawReach:number;
+  party?:boolean;
 }
 
 interface MammalShape {
@@ -345,6 +347,11 @@ function drawMammal(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:P
   ears(c,a,m,-m.headR*.5,-m.headR-3,pose,t);
   c.fillStyle=coat;c.beginPath();c.arc(0,0,m.headR,0,TAU);c.fill();
   face(c,a,m,pose,m.snout*.4,-m.headR*.15);
+  if(pose.party){
+    tri(c,-6,-m.headR-1,0,-m.headR-13,6,-m.headR-1,"#e8574f");
+    tri(c,-2.5,-m.headR-5.5,0,-m.headR-13,2.5,-m.headR-5.5,"#ffd76e");
+    c.fillStyle="#ffd76e";c.beginPath();c.arc(0,-m.headR-14,2.4,0,TAU);c.fill();
+  }
   c.restore();
 
   if(pose.carry){
@@ -417,6 +424,7 @@ interface LandingInfo { at:number; vy:number }
 /** Full pet painter: transform, squash/stretch, sheet-or-procedural body. */
 function paintPetInto(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,landing:LandingInfo|null,cursor?:Vec2,reducedMotion=false):void{
   const pose=computePose(p,t,hash01(p.id)*10000,cursor,reducedMotion);
+  if(isAdoptionAnniversary(p,Date.now()))pose.party=true;
 
   let sy=1,sx=1;
   if(!p.body.grounded){sy=Math.min(1.16,1+Math.abs(p.body.velocity.y)*.00045);sx=Math.pow(sy,-.7);}
@@ -496,7 +504,7 @@ export function buildPreviewState(species:Species,behavior:string):PetState{
     drives:{fatigue:.2,hunger:.2,thirst:.2,play:.3,social:.3,curiosity:.4,comfort:.6},
     affect:{valence:.4,arousal:.35,stress:.05},
     body:{position:{x:0,y:0},velocity:{x:behavior==="walk"?60:0,y:0},facing:1,grounded:!["jump"].includes(behavior),surfaceId:null,target:null,held:false},
-    behavior:behavior as Behavior,behaviorSinceMs:-99999,behaviorTargetId:null,ageSeconds:100,bond:.4,lastInteractionMs:0,
+    behavior:behavior as Behavior,behaviorSinceMs:-99999,behaviorTargetId:null,ageSeconds:100,bond:.4,lastInteractionMs:0,adoptedAtMs:Date.now()-180*86_400_000,
     frustration:0,boredom:0,novelty:0,habitStrength:0,favoriteSurfaceId:null
   };
 }

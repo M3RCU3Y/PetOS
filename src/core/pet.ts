@@ -19,6 +19,7 @@ export class Pet {
   readonly diary = new PetDiary();
   private readonly rng: RandomSource;
   private lastRememberedBehavior: string;
+  celebratingBirthday=false;
 
   constructor(init: PetInit, rng: RandomSource = new SeededRandom(hashString(init.id))) {
     this.rng = rng;
@@ -28,7 +29,7 @@ export class Pet {
       drives:{fatigue:.18,hunger:.12,thirst:.1,play:.42,social:.24,curiosity:.5,comfort:.55},
       affect:{valence:.35,arousal:.35,stress:.05},
       body:{position:{x:init.x ?? 300,y:init.y ?? 700},velocity:{x:0,y:0},facing:1,grounded:true,surfaceId:null,target:null,held:false},
-      behavior:"idle", behaviorSinceMs:init.nowMs, behaviorTargetId:null, ageSeconds:0,bond:.15,lastInteractionMs:init.nowMs,favoriteSurfaceId:null,frustration:0,boredom:.1,novelty:0,habitStrength:0
+      behavior:"idle", behaviorSinceMs:init.nowMs, behaviorTargetId:null, ageSeconds:0,bond:.15,lastInteractionMs:init.nowMs,adoptedAtMs:init.nowMs,favoriteSurfaceId:null,frustration:0,boredom:.1,novelty:0,habitStrength:0
     };
     this.memory = new PetMemory();
     this.brain = new PetBrain(profile,rng);
@@ -38,6 +39,7 @@ export class Pet {
   static fromSave(save: PetSave, rng?:RandomSource): Pet {
     const pet = new Pet({id:save.state.id,name:save.state.name,species:save.state.species,nowMs:save.state.behaviorSinceMs,personality:save.state.personality,x:save.state.body.position.x,y:save.state.body.position.y}, rng);
     pet.state = structuredClone(save.state);
+    if(typeof pet.state.adoptedAtMs!=="number")pet.state.adoptedAtMs=Date.now();
     const persisted = new PetMemory(save);
     (pet as {memory:PetMemory}).memory = persisted;
     return pet;
@@ -74,6 +76,7 @@ export class Pet {
     this.maybeRememberBehavior(world);
     this.maybeDrift(world);
     this.maybeConsolidate(world);
+    this.celebratingBirthday=this.maybeCelebrateBirthday(world);
     return decision;
   }
 
@@ -89,8 +92,8 @@ export class Pet {
     });
     const weather=weatherEffect(weatherFor(now));
     const seasonalEvent=eventFor(now);
-    const moodShift=reaction.moodShift+weather.moodShift*.5+(seasonalEvent?.moodBonus??0)*.4;
-    const energyShift=reaction.energyShift+weather.energyShift*.4+(seasonalEvent?.energyBonus??0)*.3;
+    const moodShift=reaction.moodShift+weather.moodShift*.5+(seasonalEvent?.moodBonus??0)*.4+(this.celebratingBirthday?.15:0);
+    const energyShift=reaction.energyShift+weather.energyShift*.4+(seasonalEvent?.energyBonus??0)*.3+(this.celebratingBirthday?.06:0);
     this.state.affect.valence=clamp(this.state.affect.valence+moodShift*dt*.02,-1,1);
     this.state.drives.fatigue=clamp(this.state.drives.fatigue-energyShift*dt*.001);
     if(seasonalEvent)this.state.drives.play=clamp(this.state.drives.play+(seasonalEvent.energyBonus??.0)*dt*.0008);
@@ -227,6 +230,17 @@ export class Pet {
   }
 
   private lastDriftAt=0;
+  private birthdayYear="";
+  /** Once per adoption anniversary: a diary celebration and an all-day mood boost. */
+  private maybeCelebrateBirthday(world:WorldSnapshot):boolean{
+    if(!isAdoptionAnniversary(this.state,world.nowMs))return false;
+    const year=String(new Date(world.nowMs).getFullYear());
+    if(this.birthdayYear===year)return true;
+    this.birthdayYear=year;
+    this.diary.record({petId:this.state.id,atMs:world.nowMs,kind:"milestone",title:`🎂 ${this.state.name}'s adoption day!`,detail:"Another year of living on your desktop together."});
+    this.remember({kind:"discovery",atMs:world.nowMs,valence:.9,salience:.85,note:"It's our adoption day!"});
+    return true;
+  }
   /** Personality slowly drifts toward how the pet actually lives: petted pets warm up, startled pets grow cautious. */
   private maybeDrift(world:WorldSnapshot):void{
     if(this.lastDriftAt===0)this.lastDriftAt=world.nowMs;
@@ -269,3 +283,11 @@ export class Pet {
 }
 
 function hashString(text:string):number { let h=2166136261; for(const c of text){h^=c.charCodeAt(0);h=Math.imul(h,16777619);} return h>>>0; }
+
+/** True on the yearly anniversary of the pet's adoption day (not the day they moved in). */
+export function isAdoptionAnniversary(state:PetState,nowMs:number):boolean{
+  if(typeof state.adoptedAtMs!=="number")return false;
+  const adopted=new Date(state.adoptedAtMs);
+  const now=new Date(nowMs);
+  return adopted.getMonth()===now.getMonth()&&adopted.getDate()===now.getDate()&&adopted.getFullYear()<now.getFullYear();
+}
