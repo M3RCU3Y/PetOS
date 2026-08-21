@@ -21,7 +21,7 @@ const persistence=new BrowserPersistence();
 const sim=new PetOSSimulation();
 let settings:PetOSSettings={...DEFAULT_SETTINGS};
 let lastFrame=performance.now(),lastSave=0,lastNativePoll=0,lastNative:any=null,virtualBounds:Rect={x:0,y:0,width:innerWidth,height:innerHeight};
-const sound=new SoundEngine();sound.setEnabled(settings.sound);
+const sound=new SoundEngine();sound.setEnabled(settings.sound);sound.setVolume(settings.soundVolume);sound.setQuietHours(settings.quietHours);
 const prevBehaviors=new Map<string,string>();
 const interactions=new InteractionManager(canvas,(target)=>{
   const pet=sim.pets.get(target.petId);
@@ -54,7 +54,7 @@ interactions.setPetFinder((x,y)=>{
   for(const pet of [...sim.pets.values()].reverse()){if(renderer.hitTest(pet.state,point,virtualBounds))return pet.state;}
   return null;
 });
-let running=true,dragging:string|null=null,dragOffset={x:0,y:0};
+let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0;
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{sim.addPet(Pet.fromSave(rec.save),rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
@@ -74,7 +74,11 @@ const ui=new SettingsUI({
   onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const objectKind=kind==="food"||kind==="water"?"bowl":kind;const radius=kind==="bed"?38:kind==="box"?34:kind==="scratcher"?25:kind==="ball"?11:18;sim.addObject({id:crypto.randomUUID(),kind:objectKind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{}),...((kind==="food"||kind==="water")?{contents:kind}:{})});persist();},
   onPrivacyLevel(level){settings.privacyLevel=level;persist();},
   onToggleSound(enabled){settings.sound=enabled;sound.setEnabled(enabled);persist();},
+  onSoundVolume(volume){settings.soundVolume=volume;sound.setVolume(volume);persist();},
+  onToggleQuietHours(enabled){settings.quietHours=enabled;sound.setQuietHours(enabled);persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
+  onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
+  onImportState(json){return persistence.import(json);},
   onReset(){persistence.clear();location.reload();},
   onCreateCustomPet(config){const spawn={x:virtualBounds.x+120+Math.random()*Math.max(100,virtualBounds.width-240),y:virtualBounds.y+virtualBounds.height-60};const pet=new Pet({id:crypto.randomUUID(),name:config.name,species:config.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:config.personality});sim.addPet(pet,config.appearance);persist();}
 },settings,persistence);
@@ -104,11 +108,16 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
       await refreshNative(now);if(lastNative){
         const activity:DesktopFrame["userActivity"]=lastNative.locked?"idle":mediaPlaying()&&lastNative.user_activity==="active"?"media":lastNative.user_activity;
-        const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode,idleSeconds:lastNative.idle_seconds??0,locked:lastNative.locked??false,batteryLevel,charging:batteryCharging};
+        const laser=interactions.getLaser();
+        const cursorPosition=laser.active&&laser.position?{x:laser.position.x+virtualBounds.x,y:laser.position.y+virtualBounds.y}:lastNative.cursor;
+        const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition,cursorSpeed:laser.active?900:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode,idleSeconds:lastNative.idle_seconds??0,locked:lastNative.locked??false,batteryLevel,charging:batteryCharging};
         const state=sim.tick(input);
       for(const pet of sim.pets.values()){const prev=prevBehaviors.get(pet.state.id);if(prev&&prev!==pet.state.behavior)sound.playBehaviorSound(pet.state.id,pet.state.species,pet.state.behavior);prevBehaviors.set(pet.state.id,pet.state.behavior);}
+      const focusGuard=activity==="fullscreen"||activity==="gaming"||activity==="presentation";
+      sound.setQuietHours(settings.quietHours||focusGuard);
       if(Math.random()<.008){for(const pet of sim.pets.values()){const text=generateThought(pet.state);if(text)thoughts.show(pet.state,text,pet.state.body.position.x+virtualBounds.x,pet.state.body.position.y+virtualBounds.y);}}
       thoughts.update(state.pets,virtualBounds.x,virtualBounds.y);
+      if(now-lastSocialGraphUpdate>2500){lastSocialGraphUpdate=now;const relData:Record<string,Record<string,number>>={};for(const pet of sim.pets.values())relData[pet.state.id]=pet.memory.relationshipsSnapshot();ui.setRelationships(relData);}
       renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));
       ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
@@ -118,4 +127,4 @@ canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;co
 canvas.addEventListener("pointermove",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
 canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
-window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.code==="Escape")ui.close();});
+window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.ctrlKey&&e.shiftKey&&e.code==="KeyL")interactions.toggleLaser();if(e.code==="Escape")ui.close();});

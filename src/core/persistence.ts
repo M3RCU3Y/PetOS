@@ -1,7 +1,7 @@
 import type { PetOSSettings, PetRecord, WorldObject } from "./types.js";
 
 export interface PersistedAppState { version:1; pets:PetRecord[]; objects:WorldObject[]; settings:PetOSSettings; }
-export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true};
+export const DEFAULT_SETTINGS:PetOSSettings={enabled:true,interactionMode:false,debug:false,reducedMotion:false,privacyLevel:1,maxFps:60,sound:true,soundVolume:.7,quietHours:false};
 
 const CURRENT_VERSION = 1;
 
@@ -20,7 +20,9 @@ function migrateSettings(raw: Partial<PetOSSettings> | undefined): PetOSSettings
     reducedMotion: raw?.reducedMotion ?? false,
     privacyLevel: (raw?.privacyLevel ?? 1) as PetOSSettings["privacyLevel"],
     maxFps: (raw?.maxFps ?? 60) as PetOSSettings["maxFps"],
-    sound: raw?.sound ?? true
+    sound: raw?.sound ?? true,
+    soundVolume: typeof raw?.soundVolume === "number" ? Math.max(0, Math.min(1, raw.soundVolume)) : .7,
+    quietHours: raw?.quietHours ?? false
   };
 }
 

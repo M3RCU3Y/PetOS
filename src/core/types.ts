@@ -218,4 +218,6 @@ export interface PetOSSettings {
   privacyLevel: 0 | 1 | 2 | 3;
   maxFps: 30 | 60;
   sound: boolean;
+  soundVolume: number;
+  quietHours: boolean;
 }

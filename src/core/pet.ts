@@ -4,6 +4,7 @@ import { PetMemory } from "./memory.js";
 import { SeededRandom, type RandomSource } from "./rng.js";
 import { SPECIES, personalityFor } from "./species.js";
 import { ambientReaction } from "./ambient.js";
+import { eventFor, weatherEffect, weatherFor } from "./weather.js";
 import { RoutineManager } from "./routines.js";
 import { PetDiary } from "./diary.js";
 import type { Decision, EpisodicMemory, PetSave, PetState, Personality, SocialEncounterKind, Species, WorldSnapshot } from "./types.js";
@@ -77,16 +78,22 @@ export class Pet {
   }
 
   private updateDrives(world:WorldSnapshot,dt:number):void {
+    const now=new Date(world.nowMs);
     const reaction=ambientReaction({
       activity:world.userActivity,
       charging:world.charging,
       batteryLevel:world.batteryLevel,
       idleSeconds:world.locked?Math.max(world.idleSeconds,300):world.idleSeconds,
       foregroundApp:world.foregroundApp,
-      hourOfDay:new Date(world.nowMs).getHours()
+      hourOfDay:now.getHours()
     });
-    this.state.affect.valence=clamp(this.state.affect.valence+reaction.moodShift*dt*.02,-1,1);
-    this.state.drives.fatigue=clamp(this.state.drives.fatigue-reaction.energyShift*dt*.001);
+    const weather=weatherEffect(weatherFor(now));
+    const seasonalEvent=eventFor(now);
+    const moodShift=reaction.moodShift+weather.moodShift*.5+(seasonalEvent?.moodBonus??0)*.4;
+    const energyShift=reaction.energyShift+weather.energyShift*.4+(seasonalEvent?.energyBonus??0)*.3;
+    this.state.affect.valence=clamp(this.state.affect.valence+moodShift*dt*.02,-1,1);
+    this.state.drives.fatigue=clamp(this.state.drives.fatigue-energyShift*dt*.001);
+    if(seasonalEvent)this.state.drives.play=clamp(this.state.drives.play+(seasonalEvent.energyBonus??.0)*dt*.0008);
     const d=this.state.drives,p=this.state.personality,b=this.state.behavior;
     d.fatigue = clamp(d.fatigue + dt*(.00045 + p.energy*.0003) - (b==="sleep"?dt*.0085:0));
     d.hunger = clamp(d.hunger + dt*.00022 - (b==="eat"?dt*.02:0));

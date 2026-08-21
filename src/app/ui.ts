@@ -1,8 +1,8 @@
 import { extractPalette } from "./photo.js";
 import type { DiaryEntry } from "../core/diary.js";
-import { computeSocialEdges, renderSocialGraph } from "./social.js";
+import { renderSocialGraph, type SocialEdge } from "./social.js";
 import { BrowserPersistence } from "../core/persistence.js";
-import { BUILTIN_PACKS, validatePack, type PetPack } from "../core/packs.js";
+import { BUILTIN_PACKS, validatePackDetailed, type PetPack } from "../core/packs.js";
 import { SPECIES } from "../core/species.js";
 import type { PetOSSettings, Species } from "../core/types.js";
 
@@ -19,7 +19,11 @@ export interface UIActions {
   onAddObject(kind:HabitatKind):void;
   onPrivacyLevel(level:0|1|2|3):void;
   onToggleSound(enabled:boolean):void;
+  onSoundVolume(volume:number):void;
+  onToggleQuietHours(enabled:boolean):void;
   onImportPack(pack:PetPack):void;
+  onExportState():void;
+  onImportState(json:string):boolean;
   onReset():void;
   onCreateCustomPet(config:{species:Species;name:string;appearance:{coat:string;accent:string;eye:string;scale:number};personality:Record<string,number>}):void;
 }
@@ -53,16 +57,21 @@ export class SettingsUI {
   private lifeLog:HTMLElement;
   private customPacks:PetPack[]=[];
   private persistence:BrowserPersistence|null=null;
+  private relationshipsData:Record<string,Record<string,number>>={};
   private creatorState:CreatorState = { species:"cat", name:"", coat:"#d98742", accent:"#f2c287", eye:"#d7ef76", personality:{} };
   constructor(private readonly actions:UIActions,settings:PetOSSettings,persistence?:BrowserPersistence){
     this.persistence=persistence??null;
     this.panel=document.querySelector("#settings-panel")!;this.backdrop=document.querySelector("#settings-backdrop")!;this.petList=document.querySelector("#pet-list")!;this.packSelect=document.querySelector("#pack-select")!;this.lifeLog=document.querySelector("#life-log")!;
     this.renderPacks();
     this.bind(settings);
+    this.bindCreator();
   }
   open():void{this.panel.classList.add("open");this.backdrop.classList.add("open");}
   close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");}
-  setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${p.species} · ${p.behavior}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));}
+  setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${p.species} · ${p.behavior}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));
+    this.updateSocialGraph(pets);
+  }
+  setRelationships(relationships:Record<string,Record<string,number>>):void{this.relationshipsData=relationships;}
   setDiary(entries:DiaryEntry[]):void{
     const el=document.querySelector("#diary-list");
     if(!el)return;
@@ -79,17 +88,32 @@ export class SettingsUI {
     interaction.addEventListener("change",()=>this.actions.onToggleInteraction(interaction.checked));debug.addEventListener("change",()=>this.actions.onToggleDebug(debug.checked));enabled.addEventListener("change",()=>this.actions.onToggleEnabled(enabled.checked));
     document.querySelector("#settings-close")!.addEventListener("click",()=>this.close());this.backdrop.addEventListener("click",()=>this.close());document.querySelector("#settings-open")!.addEventListener("click",()=>this.open());
     document.querySelector("#add-pet")!.addEventListener("click",()=>{const pack=this.allPacks().find(p=>p.id===this.packSelect.value)??BUILTIN_PACKS[0]!;const input=document.querySelector<HTMLInputElement>("#pet-name")!;const name=input.value.trim()||pack.name.split(" ")[0]||"Pet";this.actions.onAddPet(pack,name);input.value="";});
-    document.querySelectorAll<HTMLButtonElement>("[data-object]").forEach(b=>b.addEventListener("click",()=>this.actions.onAddObject(b.dataset.object as HabitatKind)));
     const privacy=document.querySelector<HTMLSelectElement>("#privacy-level")!;privacy.value=String(settings.privacyLevel);privacy.addEventListener("change",()=>this.actions.onPrivacyLevel(Number(privacy.value) as 0|1|2|3));
     document.querySelector("#reset-state")!.addEventListener("click",()=>{if(confirm("Reset all PetOS pets, memories and objects?"))this.actions.onReset();});
-    const file=document.querySelector<HTMLInputElement>("#pack-file")!;file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;try{const pack=validatePack(JSON.parse(await f.text()));if(!pack)throw new Error("invalid pack");this.customPacks.push(pack);this.renderPacks();this.actions.onImportPack(pack);}catch{alert("That file is not a valid PetOS pet pack JSON.");}finally{file.value="";}});
+    const soundToggle=document.querySelector<HTMLInputElement>("#sound-toggle")!;soundToggle.checked=settings.sound;soundToggle.addEventListener("change",()=>this.actions.onToggleSound(soundToggle.checked));
+    const volume=document.querySelector<HTMLInputElement>("#sound-volume")!;volume.value=String(settings.soundVolume);volume.addEventListener("input",()=>this.actions.onSoundVolume(Number(volume.value)));
+    const quiet=document.querySelector<HTMLInputElement>("#quiet-hours-toggle")!;quiet.checked=settings.quietHours;quiet.addEventListener("change",()=>this.actions.onToggleQuietHours(quiet.checked));
+    document.querySelector("#export-state")?.addEventListener("click",()=>this.actions.onExportState());
+    document.querySelector("#import-state")?.addEventListener("click",()=>{document.querySelector<HTMLInputElement>("#import-file")?.click();});
+    const importFile=document.querySelector<HTMLInputElement>("#import-file");
+    importFile?.addEventListener("change",async()=>{
+      const f=importFile.files?.[0];
+      if(!f)return;
+      const json=await f.text();
+      if(this.actions.onImportState(json))location.reload();
+      importFile.value="";
+    });
+    const file=document.querySelector<HTMLInputElement>("#pack-file")!;file.addEventListener("change",async()=>{const f=file.files?.[0];if(!f)return;try{const result=validatePackDetailed(JSON.parse(await f.text()));if(!result.pack)throw new Error(result.errors.join("; "));this.customPacks.push(result.pack);this.renderPacks();this.actions.onImportPack(result.pack);}catch{alert("That file is not a valid PetOS pet pack JSON.");}finally{file.value="";}});
   }
   private updateSocialGraph(pets:{id:string;name:string;species:Species;behavior:string}[]):void{
     const container=document.querySelector("#social-graph");
     if(!container)return;
-    const relMap=new Map<string,Map<string,number>>();
-    const edges=computeSocialEdges(pets.map(p=>({id:p.id,name:p.name,species:p.species} as any)),relMap);
-    renderSocialGraph(container as HTMLElement,pets.map(p=>({id:p.id,name:p.name,species:p.species})),edges);
+    const edges:SocialEdge[]=[];
+    for(let i=0;i<pets.length;i++)for(let j=i+1;j<pets.length;j++){
+      const a=pets[i]!,b=pets[j]!;
+      edges.push({from:a.id,to:b.id,value:this.relationshipsData[a.id]?.[b.id]??0});
+    }
+    renderSocialGraph(container as HTMLElement,pets,edges);
   }
 
   private bindCreator():void{

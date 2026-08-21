@@ -99,6 +99,12 @@ export class PetMemory {
     return best && best[1] > .12 ? best[0] : null;
   }
 
+  relationshipsSnapshot(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const id of this.relationships.keys()) out[id] = this.relationshipWith(id);
+    return out;
+  }
+
   serialize(): { memories: EpisodicMemory[]; surfacePreferences: Record<string,number>; appPreferences: Record<string,number>; toyPreferences: Record<string,number>; relationships: Record<string,Relationship> } {
     return {
       memories: [...this.episodes],
