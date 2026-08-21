@@ -145,6 +145,16 @@ export interface Decision {
   allScores: DecisionScore[];
 }
 
+export interface Relationship {
+  familiarity: number;
+  trust: number;
+  affection: number;
+  irritation: number;
+  rivalry: number;
+}
+
+export type SocialEncounterKind = "greet" | "play" | "fight" | "cuddle" | "share" | "steal";
+
 export interface EpisodicMemory {
   id: string;
   atMs: number;
@@ -185,7 +195,7 @@ export interface PetSave {
   surfacePreferences: Record<string, number>;
   appPreferences: Record<string, number>;
   toyPreferences?: Record<string, number>;
-  relationships: Record<string, number>;
+  relationships: Record<string, number | Relationship>;
 }
 
 export interface PetAppearance {

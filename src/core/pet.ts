@@ -6,7 +6,7 @@ import { SPECIES, personalityFor } from "./species.js";
 import { ambientReaction } from "./ambient.js";
 import { RoutineManager } from "./routines.js";
 import { PetDiary } from "./diary.js";
-import type { Decision, EpisodicMemory, PetSave, PetState, Personality, Species, WorldSnapshot } from "./types.js";
+import type { Decision, EpisodicMemory, PetSave, PetState, Personality, SocialEncounterKind, Species, WorldSnapshot } from "./types.js";
 
 export interface PetInit { id:string; name:string; species:Species; nowMs:number; personality?:Partial<Personality>; x?:number; y?:number; }
 
@@ -136,6 +136,11 @@ export class Pet {
   rememberSocial(otherId:string, world:WorldSnapshot, valence=.5):void {
     this.memory.adjustRelationship(otherId,valence*.018);
     this.remember({kind:"social",subjectId:otherId,atMs:world.nowMs,valence,salience:.4,note:"Social encounter with another pet"});
+  }
+
+  noteEncounter(otherId:string, kind:SocialEncounterKind, nowMs:number):void {
+    this.memory.noteEncounter(otherId,kind);
+    this.remember({kind:"social",subjectId:otherId,atMs:nowMs,valence:kind==="fight"?-.15:.55,salience:.4,note:`${kind} with another pet`});
   }
 
   private updateCognition(world:WorldSnapshot,dt:number):void {

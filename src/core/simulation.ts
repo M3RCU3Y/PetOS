@@ -70,7 +70,14 @@ export class PetOSSimulation {
         nudgeToy(toy,pet.state.body.position,{x:toy.position.x+pet.state.body.facing*40,y:toy.position.y});
         pet.memory.reinforceToy(toy.id,.012);
       }
-      if(["play_pet","greet_pet"].includes(pet.state.behavior)&&d.targetId&&world.nearbyPets.find(o=>o.id===d.targetId)?.distance!<90)pet.rememberSocial(d.targetId,world,.55);
+      const socialKind=({greet_pet:"greet",play_pet:"play",play_fight:"fight",cuddle:"cuddle",follow_pet:"greet"} as Record<string,import("./types.js").SocialEncounterKind>)[pet.state.behavior];
+      if(socialKind&&d.targetId&&world.nearbyPets.find(o=>o.id===d.targetId)?.distance!<95){
+        pet.noteEncounter(d.targetId,socialKind,frame.nowMs);
+        const other=this.pets.get(d.targetId);
+        if(other&&other!==pet){
+          other.memory.noteEncounter(pet.state.id,socialKind);
+        }
+      }
     }
     return{pets:[...this.pets.values()].map(p=>p.state),objects:this.objects,decisions};
   }

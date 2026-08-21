@@ -74,12 +74,29 @@ export class PetBrain {
     if (d.play > .72 && d.fatigue < .45 && p.energy > .5) add("zoomies", d.play*.35 + p.energy*.35 + a.arousal*.18 + eveningCatBurst, "stored play energy erupts into zoomies");
 
     const nearestPet = [...world.nearbyPets].sort((a,b)=>a.distance-b.distance)[0];
-    if (nearestPet && nearestPet.distance < 450) {
-      const relation = memory.relationshipWith(nearestPet.id);
-      add("follow_pet", (d.social*.26 + p.sociability*.22 + relation*.16) * keeper, "familiar nearby pet", {id:nearestPet.id,position:nearestPet.position});
-      if (nearestPet.distance < 140) {
-        add("greet_pet", p.sociability*.25 + d.social*.22 + relation*.2, "close social contact", {id:nearestPet.id,position:nearestPet.position});
-        add("play_pet", d.play*.34 + p.playfulness*.28 + relation*.18, "social play opportunity", {id:nearestPet.id,position:nearestPet.position});
+    if (nearestPet) {
+      const rel = memory.relate(nearestPet.id);
+
+      if (nearestPet.distance < 320 && rel.familiarity < .18) {
+        add("investigate", d.curiosity*.3 + p.curiosity*.22 + .06, "curious about the newcomer", {id:nearestPet.id, position:nearestPet.position});
+      }
+      if ((rel.irritation > .45 || rel.rivalry > .55) && nearestPet.distance < 180) {
+        const away = { x: state.body.position.x + (state.body.position.x - nearestPet.position.x)*2, y: state.body.position.y };
+        add("walk", rel.rivalry*.3 + rel.irritation*.3, "keeps distance from a rival", { position: away });
+      }
+
+      if (nearestPet.distance < 450) {
+        add("follow_pet", (d.social*.26 + p.sociability*.22 + memory.relationshipWith(nearestPet.id)*.16) * keeper, "familiar nearby pet", {id:nearestPet.id,position:nearestPet.position});
+        if (nearestPet.distance < 140) {
+          add("greet_pet", p.sociability*.25 + d.social*.22 + memory.relationshipWith(nearestPet.id)*.2, "close social contact", {id:nearestPet.id,position:nearestPet.position});
+          add("play_pet", d.play*.34 + p.playfulness*.28 + memory.relationshipWith(nearestPet.id)*.18, "social play opportunity", {id:nearestPet.id,position:nearestPet.position});
+          if (nearestPet.behavior === "sleep" && rel.trust > .18 && d.fatigue > .4) {
+            add("cuddle", d.fatigue*.34 + rel.affection*.32 + rel.trust*.18, "sleeps piled beside a trusted friend", {id:nearestPet.id, position:nearestPet.position});
+          }
+          if (p.playfulness > .55 && d.play > .45 && (rel.rivalry > .25 || d.play > .75)) {
+            add("play_fight", d.play*.32 + rel.rivalry*.24 + p.playfulness*.2, "wrestles with a sparring partner", {id:nearestPet.id, position:nearestPet.position});
+          }
+        }
       }
     }
 
@@ -128,7 +145,19 @@ export class PetBrain {
     const scratcher = world.objects.find(o => o.kind === "scratcher");
     if (scratcher && state.species === "cat") add("scratch", .16 + p.energy*.12 + d.play*.12, "cat maintenance and territory behavior", {id:scratcher.id,position:scratcher.position});
     const bed = world.objects.find(o => o.kind === "bed");
-    if (bed && d.fatigue > .55) add("sleep", d.fatigue*.96 + (bed.comfort ?? .7)*.25, "comfortable bed available", {id:bed.id,position:bed.position});
+    if (bed && d.fatigue > .55) {
+      const occupant = world.nearbyPets.find(o => Math.hypot(o.position.x-bed.position.x, o.position.y-bed.position.y) < 55);
+      if (occupant) {
+        const rel = memory.relate(occupant.id);
+        if (rel.rivalry > .35 || rel.irritation > .4) {
+          add("play_fight", d.fatigue*.18 + rel.rivalry*.32 + p.boldness*.14, "contests the occupied bed", {id:occupant.id, position:{...bed.position}});
+        } else {
+          add("sleep", d.fatigue*.9 + rel.trust*.16 + (bed.comfort ?? .7)*.2, "shares a warm bed with a friend", {id:bed.id, position:bed.position});
+        }
+      } else {
+        add("sleep", d.fatigue*.96 + (bed.comfort ?? .7)*.25, "comfortable bed available", {id:bed.id,position:bed.position});
+      }
+    }
     const box = world.objects.find(o => o.kind === "box");
     if (box && (a.stress > .55 || (state.species === "cat" && p.curiosity > .6))) add("hide", a.stress*.45 + p.curiosity*.15, "safe enclosed space available", {id:box.id,position:box.position});
     if (a.stress > .4 && d.fatigue < .7) {
