@@ -9,6 +9,7 @@ import { SettingsUI } from "./ui.js";
 import { SoundEngine } from "./sound.js";
 import { showOnboarding } from "./onboarding.js";
 import { InteractionManager, type InteractionTarget } from "./interaction.js";
+import { FurnitureEditor, FURNITURE_TEMPLATES, type FurnitureTemplate } from "./furniture.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
 const renderer=new PixelRenderer(canvas);
@@ -26,6 +27,22 @@ const interactions=new InteractionManager(canvas,(target)=>{
   if(target.kind==="pet")pet.receivePetting(world,.6);
   else if(target.kind==="feed"){pet.state.drives.hunger=Math.max(0,pet.state.drives.hunger-.3);pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.15);}
   else if(target.kind==="call")pet.state.body.target={...target.position};
+});
+const furniture=new FurnitureEditor(canvas);
+furniture.setPlaceHandler((template,x,y)=>{
+  const objectKind=template.kind==="food"||template.kind==="water"?"bowl":template.kind;
+  sim.addObject({id:crypto.randomUUID(),kind:objectKind as any,position:{x:x+virtualBounds.x,y:y+virtualBounds.y},radius:template.radius,...(template.comfort?{comfort:template.comfort}:{}),...(template.contents?{contents:template.contents}:{})});
+  persist();
+});
+document.querySelectorAll<HTMLButtonElement>("[data-object]").forEach(b=>{b.remove();});
+const palette=document.querySelector("#furniture-palette")!;
+palette.innerHTML=FURNITURE_TEMPLATES.map((t)=>`<button data-furniture="${t.kind}"><span class="furniture-emoji">${t.emoji}</span><span>${t.label}</span><span class="furniture-desc">${t.description}</span></button>`).join("");
+palette.querySelectorAll<HTMLButtonElement>("[data-furniture]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const template=FURNITURE_TEMPLATES.find(t=>t.kind===btn.dataset.furniture)!;
+    if(furniture.active){furniture.deselect();btn.classList.remove("selected");}
+    else{furniture.select(template);btn.classList.add("selected");}
+  });
 });
 interactions.setPetFinder((x,y)=>{
   const point={x,y};

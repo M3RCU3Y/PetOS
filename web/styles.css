@@ -19,4 +19,10 @@
 .interaction-menu button{background:transparent;border:none;color:#f1f3f8;padding:8px 16px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;text-align:left}
 .interaction-menu button:hover{background:rgba(239,118,95,.15)}
 #laser-pointer{position:fixed;width:12px;height:12px;background:#ff3333;border-radius:50%;pointer-events:none;z-index:10000;box-shadow:0 0 12px 3px rgba(255,50,50,.6);animation:laser-pulse .5s infinite alternate}
-@keyframes laser-pulse{from{opacity:.7;transform:scale(.8)}to{opacity:1;transform:scale(1.1)}}
+@keyframes laser-pulse{from{opacity:.7;transform:scale(.8)}to{opacity:1;transform:scale(1.1)}}.furniture-ghost{position:fixed;pointer-events:none;z-index:9998;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.6;border:2px dashed rgba(239,118,95,.5);border-radius:50%;background:rgba(239,118,95,.08)}
+.furniture-palette{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.furniture-palette button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:1px solid rgba(255,255,255,.1);background:#222632;color:#f1f3f8;border-radius:12px;cursor:pointer;font:inherit;font-size:10px;transition:.15s}
+.furniture-palette button:hover{background:#2a3040}
+.furniture-palette button.selected{border-color:#ef765f;background:rgba(239,118,95,.12)}
+.furniture-palette .furniture-emoji{font-size:20px}
+.furniture-palette .furniture-desc{font-size:9px;color:#8f98ad;line-height:1.3}
