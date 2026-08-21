@@ -5,13 +5,15 @@ export class PetMemory {
   private episodes: EpisodicMemory[];
   private surfacePrefs: Map<string, number>;
   private appPrefs: Map<string, number>;
+  private toyPrefs: Map<string, number>;
   private relationships: Map<string, number>;
   private maxEpisodes = 200;
 
-  constructor(seed?: { memories?: EpisodicMemory[]; surfacePreferences?: Record<string, number>; appPreferences?: Record<string, number>; relationships?: Record<string, number> }) {
+  constructor(seed?: { memories?: EpisodicMemory[]; surfacePreferences?: Record<string, number>; appPreferences?: Record<string, number>; toyPreferences?: Record<string, number>; relationships?: Record<string, number> }) {
     this.episodes = [...(seed?.memories ?? [])];
     this.surfacePrefs = new Map(Object.entries(seed?.surfacePreferences ?? {}));
     this.appPrefs = new Map(Object.entries(seed?.appPreferences ?? {}));
+    this.toyPrefs = new Map(Object.entries(seed?.toyPreferences ?? {}));
     this.relationships = new Map(Object.entries(seed?.relationships ?? {}));
   }
 
@@ -25,15 +27,28 @@ export class PetMemory {
 
   reinforceSurface(id: string, delta: number): void { this.surfacePrefs.set(id, clamp((this.surfacePrefs.get(id) ?? 0) + delta, -1, 1)); }
   reinforceApp(id: string, delta: number): void { this.appPrefs.set(id, clamp((this.appPrefs.get(id) ?? 0) + delta, -1, 1)); }
+  reinforceToy(id: string, delta: number): void { this.toyPrefs.set(id, clamp((this.toyPrefs.get(id) ?? 0) + delta, -1, 1)); }
   adjustRelationship(id: string, delta: number): void { this.relationships.set(id, clamp((this.relationships.get(id) ?? 0) + delta, -1, 1)); }
   preferenceForSurface(id: string): number { return this.surfacePrefs.get(id) ?? 0; }
   preferenceForApp(id: string): number { return this.appPrefs.get(id) ?? 0; }
+  preferenceForToy(id: string): number { return this.toyPrefs.get(id) ?? 0; }
   relationshipWith(id: string): number { return this.relationships.get(id) ?? 0; }
   recent(kind?: EpisodicMemory["kind"], limit = 8): EpisodicMemory[] { return this.episodes.filter(e => !kind || e.kind === kind).slice(-limit); }
+  countKind(kind: EpisodicMemory["kind"], withinMs: number, nowMs: number): number {
+    return this.episodes.filter(e => e.kind === kind && nowMs - e.atMs <= withinMs).length;
+  }
+
+  /** Sleep-time memory consolidation: weak old traces fade so vivid ones dominate. */
+  consolidate(): void {
+    if (this.episodes.length <= 120) return;
+    const weak = this.episodes.findIndex(e => e.salience < .35);
+    if (weak >= 0 && Date.now() - this.episodes[weak]!.atMs > 60 * 60 * 1000) this.episodes.splice(weak, 1);
+  }
 
   decay(dtSeconds: number): void {
     for (const [k,v] of this.surfacePrefs) this.surfacePrefs.set(k, expDecay(v, 60 * 60 * 24 * 21, dtSeconds));
     for (const [k,v] of this.appPrefs) this.appPrefs.set(k, expDecay(v, 60 * 60 * 24 * 30, dtSeconds));
+    for (const [k,v] of this.toyPrefs) this.toyPrefs.set(k, expDecay(v, 60 * 60 * 24 * 14, dtSeconds));
   }
 
   favoriteSurface(): string | null {
@@ -42,11 +57,18 @@ export class PetMemory {
     return best && best[1] > .15 ? best[0] : null;
   }
 
-  serialize(): { memories: EpisodicMemory[]; surfacePreferences: Record<string,number>; appPreferences: Record<string,number>; relationships: Record<string,number> } {
+  favoriteToy(): string | null {
+    let best: [string, number] | null = null;
+    for (const entry of this.toyPrefs) if (!best || entry[1] > best[1]) best = entry;
+    return best && best[1] > .12 ? best[0] : null;
+  }
+
+  serialize(): { memories: EpisodicMemory[]; surfacePreferences: Record<string,number>; appPreferences: Record<string,number>; toyPreferences: Record<string,number>; relationships: Record<string,number> } {
     return {
       memories: [...this.episodes],
       surfacePreferences: Object.fromEntries(this.surfacePrefs),
       appPreferences: Object.fromEntries(this.appPrefs),
+      toyPreferences: Object.fromEntries(this.toyPrefs),
       relationships: Object.fromEntries(this.relationships)
     };
   }

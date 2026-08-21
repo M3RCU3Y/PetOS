@@ -66,7 +66,10 @@ export class PetOSSimulation {
       const d=pet.tick(world,frame.dtMs);decisions[pet.state.id]={behavior:d.behavior,reason:d.reason,score:d.score};
       this.physics.update(pet.state,world,frame.dtMs);
       const toy=d.targetId?this.objects.find(o=>o.id===d.targetId&&(o.kind==="ball"||o.kind==="toy")):undefined;
-      if(toy&&pet.state.behavior==="play_toy"&&Math.hypot(toy.position.x-pet.state.body.position.x,toy.position.y-pet.state.body.position.y)<45)nudgeToy(toy,pet.state.body.position,{x:toy.position.x+pet.state.body.facing*40,y:toy.position.y});
+      if(toy&&pet.state.behavior==="play_toy"&&Math.hypot(toy.position.x-pet.state.body.position.x,toy.position.y-pet.state.body.position.y)<45){
+        nudgeToy(toy,pet.state.body.position,{x:toy.position.x+pet.state.body.facing*40,y:toy.position.y});
+        pet.memory.reinforceToy(toy.id,.012);
+      }
       if(["play_pet","greet_pet"].includes(pet.state.behavior)&&d.targetId&&world.nearbyPets.find(o=>o.id===d.targetId)?.distance!<90)pet.rememberSocial(d.targetId,world,.55);
     }
     return{pets:[...this.pets.values()].map(p=>p.state),objects:this.objects,decisions};

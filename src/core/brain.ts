@@ -20,6 +20,7 @@ const MIN_DURATION_MS: Partial<Record<Behavior, number>> = {
 
 export class PetBrain {
   private readonly objects = new ObjectPermanence();
+  private seeking:{ objectId:string; position:{x:number;y:number}; kind:string }|null = null;
   constructor(private readonly profile: SpeciesProfile, private readonly rng: RandomSource) {}
 
   decide(state: PetState, world: WorldSnapshot, memory: PetMemory): Decision {
@@ -29,8 +30,7 @@ export class PetBrain {
       return { behavior: state.behavior, score: 1, reason: "behavior inertia", ...(state.behaviorTargetId ? {targetId:state.behaviorTargetId}:{}), allScores: [] };
     }
 
-    this.objects.observe(world.objects, world.nowMs);
-    const scores: DecisionScore[] = [];
+    this.objects.observe(world.objects, world.nowMs);    const scores: DecisionScore[] = [];
     const add = (behavior: Behavior, value: number, reason: string, target?: { id?: string; position?: {x:number;y:number} }) => {
       const bias = this.profile.behaviorBias[behavior] ?? 0;
       const noise = this.rng.between(-.045, .045);
@@ -84,12 +84,43 @@ export class PetBrain {
     }
 
     const ball = world.objects.find(o => (o.kind === "ball" || o.kind === "toy"));
-    if (ball) add("play_toy", d.play*.43 + p.playfulness*.33 - d.fatigue*.2, "toy available", {id:ball.id,position:ball.position});
+    if (ball) {
+      const toyPref = memory.preferenceForToy(ball.id) + (memory.favoriteToy() === ball.id ? .08 : 0);
+      add("play_toy", d.play*.43 + p.playfulness*.33 - d.fatigue*.2 + toyPref*.18, toyPref > .1 ? "a familiar favorite toy" : "toy available", {id:ball.id,position:ball.position});
+    }
     const food = world.objects.find(o => o.kind === "bowl" && o.contents === "food");
+
+    // Resolve an in-progress seek: did the remembered object turn out to be there?
+    if (this.seeking) {
+      const found = world.objects.find(o => o.id === this.seeking!.objectId);
+      if (found) {
+        this.seeking = null;
+      } else {
+        const arrived = Math.hypot(state.body.position.x-this.seeking.position.x, state.body.position.y-this.seeking.position.y) < 60;
+        if (arrived && world.nowMs - state.behaviorSinceMs > 1500) {
+          const missCount = this.objects.recordMiss(this.seeking.objectId, world.nowMs);
+          if (missCount >= 3) {
+            this.seeking = null;
+          } else {
+            const spread = 70 + this.rng.between(0,90)*missCount;
+            const searchPos = { x:this.seeking.position.x + this.rng.between(-spread,spread), y:this.seeking.position.y };
+            add("investigate", .55 + d.hunger*.3, `it should be here… searching nearby (${missCount})`, { id:`search:${this.seeking.objectId}:${missCount}`, position:searchPos });
+            scores.sort((a,b)=>b.score-a.score);
+            const top = scores[0]!;
+            return { behavior:top.behavior, score:top.score, reason:top.reason, ...(top.targetId?{targetId:top.targetId}:{}), ...(top.targetPosition?{targetPosition:top.targetPosition}:{}), allScores:scores };
+          }
+        }
+      }
+    }
 
     if (!food && d.hunger > .6 && this.objects.knowsAbout("bowl")) {
       const remembered = this.objects.findNearest("bowl", state.body.position);
-      if (remembered) add("investigate", d.hunger*.4 + .1, "remembers where food usually is", { id: remembered.id, position: remembered.lastPosition });
+      if (remembered && !this.objects.gaveUp(remembered.id, world.nowMs)) {
+        this.seeking = { objectId:remembered.id, position:{...remembered.lastPosition}, kind:"bowl" };
+        add("investigate", d.hunger*.45 + .12, "remembers where food usually is", { id: remembered.id, position: remembered.lastPosition });
+      } else if (remembered && this.objects.gaveUp(remembered.id, world.nowMs)) {
+        state.frustration = clamp(state.frustration + .02);
+      }
     }
     if (food) add("eat", d.hunger*.92 + p.foodDrive*.18, "hunger and food are available", {id:food.id,position:food.position});
     const water = world.objects.find(o => o.kind === "bowl" && o.contents === "water");
@@ -100,6 +131,12 @@ export class PetBrain {
     if (bed && d.fatigue > .55) add("sleep", d.fatigue*.96 + (bed.comfort ?? .7)*.25, "comfortable bed available", {id:bed.id,position:bed.position});
     const box = world.objects.find(o => o.kind === "box");
     if (box && (a.stress > .55 || (state.species === "cat" && p.curiosity > .6))) add("hide", a.stress*.45 + p.curiosity*.15, "safe enclosed space available", {id:box.id,position:box.position});
+    if (a.stress > .4 && d.fatigue < .7) {
+      const cozy = [...world.objects].filter(o=>o.kind==="bed").sort((x,y)=>(y.comfort??0)-(x.comfort??0))[0];
+      const comfySurface = [...world.surfaces].filter(s=>(s.comfort??.2)>.5).sort((x,y)=>(y.comfort??0)-(x.comfort??0))[0];
+      if (cozy) add("sit", a.stress*.4 + (cozy.comfort??.8)*.3, "seeks somewhere safe and soft", {id:cozy.id,position:cozy.position});
+      else if (comfySurface) add("walk", a.stress*.3, "seeks a calmer corner", { id:comfySurface.id, position:{x:comfySurface.rect.x+comfySurface.rect.width/2,y:comfySurface.walkY} });
+    }
 
     const current = world.currentSurface;
     if (current) {

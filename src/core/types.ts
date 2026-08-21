@@ -184,6 +184,7 @@ export interface PetSave {
   memories: EpisodicMemory[];
   surfacePreferences: Record<string, number>;
   appPreferences: Record<string, number>;
+  toyPreferences?: Record<string, number>;
   relationships: Record<string, number>;
 }
 

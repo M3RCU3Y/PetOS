@@ -71,6 +71,8 @@ export class Pet {
     }
     this.state.favoriteSurfaceId = this.memory.favoriteSurface();
     this.maybeRememberBehavior(world);
+    this.maybeDrift(world);
+    this.maybeConsolidate(world);
     return decision;
   }
 
@@ -165,6 +167,36 @@ export class Pet {
     this.lastRememberedBehavior=this.state.behavior;
     if (this.state.behavior==="sleep" && world.currentSurface) this.remember({kind:"sleep",atMs:world.nowMs,valence:.5,salience:.35,surfaceId:world.currentSurface.id,note:"Settled down to sleep"});
     if (this.state.behavior==="investigate" && world.currentSurface) this.remember({kind:"discovery",atMs:world.nowMs,valence:.25,salience:.3,surfaceId:world.currentSurface.id,note:"Investigated a desktop surface"});
+  }
+
+  private lastDriftAt=0;
+  /** Personality slowly drifts toward how the pet actually lives: petted pets warm up, startled pets grow cautious. */
+  private maybeDrift(world:WorldSnapshot):void{
+    if(this.lastDriftAt===0)this.lastDriftAt=world.nowMs;
+    if(world.nowMs-this.lastDriftAt<3_600_000)return;
+    this.lastDriftAt=world.nowMs;
+    const p=this.state.personality;
+    const window_=3_600_000*6;
+    const pettings=this.memory.countKind("petting",window_,world.nowMs);
+    const frights=this.memory.countKind("fright",window_,world.nowMs);
+    const plays=this.memory.countKind("play",window_,world.nowMs);
+    const step=(n:number)=>Math.min(.02,n*.002);
+    const drift:(key:keyof Personality,d:number)=>void=(key,d)=>{
+      p[key]=clamp(p[key]+d,.05,.95);
+    };
+    if(pettings>6){drift("affection",step(pettings));drift("boldness",step(pettings)*.5);}
+    if(frights>2){drift("boldness",-step(frights));drift("curiosity",-step(frights)*.4);}
+    if(plays>8)drift("playfulness",step(plays));
+  }
+
+  private lastConsolidateAt=0;
+  /** While asleep the pet files away the day: sleeping spots become trusted, weak memories fade. */
+  private maybeConsolidate(world:WorldSnapshot):void{
+    if(this.state.behavior!=="sleep")return;
+    if(world.nowMs-this.lastConsolidateAt<8_000)return;
+    this.lastConsolidateAt=world.nowMs;
+    if(world.currentSurface)this.memory.reinforceSurface(world.currentSurface.id,.015);
+    this.memory.consolidate();
   }
 
   private remember(input:Omit<EpisodicMemory,"id">):void { this.memory.remember({id:`${this.state.id}:${input.atMs}:${this.rng.next().toString(36).slice(2,7)}`,...input}); }
