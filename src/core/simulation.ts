@@ -39,10 +39,23 @@ export class PetOSSimulation {
       const previous=this.previousSurfaces.get(surface.id);
       if(previous){
         const dx=surface.rect.x-previous.x,dy=surface.walkY-previous.walkY;
-        if(Math.abs(dx)+Math.abs(dy)>.01){
-          surface.moving=true;surface.velocity={x:dx/(Math.max(frame.dtMs,1)/1000),y:dy/(Math.max(frame.dtMs,1)/1000)};
-          for(const pet of this.pets.values())if(pet.state.body.grounded&&pet.state.body.surfaceId===surface.id){pet.state.body.position.x+=dx;pet.state.body.position.y+=dy;}
-        }
+          if(Math.abs(dx)+Math.abs(dy)>.01){
+            const dtSec=Math.max(frame.dtMs,1)/1000;
+            const speed=Math.hypot(dx,dy)/dtSec;
+            surface.moving=true;surface.velocity={x:dx/dtSec,y:dy/dtSec};
+            for(const pet of this.pets.values()){
+              if(pet.state.body.grounded&&pet.state.body.surfaceId===surface.id){
+                // Smooth drags are ridden out; abrupt snaps/teleports startle pets off.
+                if((Math.abs(dx)+Math.abs(dy)>150||speed>6000)&&pet.state.behavior!=="startle"){
+                  pet.startleReaction(frame.nowMs,"the ground lurched beneath them");
+                  pet.state.body.grounded=false;pet.state.body.surfaceId=null;
+                  pet.state.body.velocity={x:Math.sign(dx||1)*160,y:-230};
+                }else{
+                  pet.state.body.position.x+=dx;pet.state.body.position.y+=dy;
+                }
+              }
+            }
+          }
       }
     }
     this.previousSurfaces=new Map(surfaces.map(s=>[s.id,{x:s.rect.x,y:s.rect.y,walkY:s.walkY}]));

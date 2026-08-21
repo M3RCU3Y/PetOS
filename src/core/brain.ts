@@ -14,7 +14,8 @@ const BASE: Record<Behavior, number> = {
 };
 const MIN_DURATION_MS: Partial<Record<Behavior, number>> = {
   sleep: 14_000, groom: 4_000, sit: 3_000, idle: 1_800, chase_cursor: 2_000, investigate: 2_600,
-  seek_user: 3_000, play_pet: 3_000, play_toy: 3_000, zoomies: 4_000, carry_toy: 3_000, perch: 4_000, eat: 4_000, drink: 3_000, scratch: 3_000
+  seek_user: 3_000, play_pet: 3_000, play_toy: 3_000, zoomies: 4_000, carry_toy: 3_000, perch: 4_000, eat: 4_000, drink: 3_000, scratch: 3_000,
+  stalk: 2_200, startle: 1_100, climb: 1_600, hang: 1_300, peek: 1_250, cuddle: 6_000, play_fight: 4_000
 };
 
 export class PetBrain {
@@ -57,10 +58,15 @@ export class PetBrain {
       add("investigate", d.curiosity*.5 + p.curiosity*.35 + state.novelty*.15, "a new desktop surface appeared", newest ? { id:`window:${newest.id}`, position:{x:newest.rect.x+newest.rect.width/2,y:newest.rect.y} } : undefined);
     }
 
-    if (world.cursor.distanceToPet < 280 && world.cursor.speed > 420) {
-      const prey = clamp(world.cursor.speed/1800,0,1) * clamp(1-world.cursor.distanceToPet/330,0,1);
-      add("chase_cursor", d.play*.45 + p.playfulness*.32 + prey*.5 - d.fatigue*.25, "fast nearby cursor resembles prey", { position:world.cursor.position });
-      if (world.cursor.distanceToPet < 100) add("pounce", d.play*.35 + prey*.55, "cursor is within pouncing range", { position:world.cursor.position });
+    if (world.cursor.distanceToPet < 340 && world.cursor.speed > 380) {
+      const prey = clamp(world.cursor.speed/1800,0,1) * clamp(1-world.cursor.distanceToPet/380,0,1);
+      if (world.cursor.distanceToPet < 130) {
+        add("chase_cursor", d.play*.45 + p.playfulness*.32 + prey*.5 - d.fatigue*.25, "fast nearby cursor resembles prey", { position:world.cursor.position });
+        if (world.cursor.distanceToPet < 90) add("pounce", d.play*.35 + prey*.55, "cursor is within pouncing range", { position:world.cursor.position });
+      } else {
+        const stalker = state.species === "cat" ? .22 : 0;
+        add("stalk", d.play*.3 + p.playfulness*.24 + prey*.42 + stalker - d.fatigue*.2, "prey spotted — closing in slowly", { position:world.cursor.position });
+      }
     }
 
     add("seek_user", (d.social*.5 + p.affection*.28 + (1-p.independence)*.12 + state.frustration*.18) * keeper, keeper < 1 ? "Keeper suppresses interruption" : "social drive seeks user", { position:world.cursor.position });
@@ -103,6 +109,24 @@ export class PetBrain {
         add("sleep", pref*.2 + d.fatigue*.38, "trusted sleeping location");
       }
       if (current.kind === "window" && state.species === "cat") add("perch", p.curiosity*.15 + .12, "cat prefers elevated ledges");
+
+      if (state.species === "cat" || state.species === "bird") {
+        const above = world.surfaces.filter(s =>
+          s.kind === "window" && s.rect.height > 70 &&
+          (current.walkY - s.walkY) > 60 && (current.walkY - s.walkY) < 320 &&
+          !(state.body.position.x < s.rect.x - 40 || state.body.position.x > s.rect.x + s.rect.width + 40)
+        );
+        const best = above[0];
+        if (best) {
+          const sideX = state.body.position.x < best.rect.x ? best.rect.x : best.rect.x + best.rect.width;
+          add("climb", p.curiosity*.22 + d.curiosity*.16 + d.play*.1, "spied a higher ledge worth climbing", { id:best.id, position:{x:sideX,y:current.walkY} });
+        }
+      }
+      // Learned avoidance: a surface that once frightened the pet loses appeal
+      const frights = memory.recent("fright", 12).filter(f => f.surfaceId === current.id);
+      if (frights.length && pref < .3) {
+        add("walk", .12 + frights.length*.05, "uneasy about this spot", { position:{x:world.cursor.position.x,y:current.walkY} });
+      }
     }
 
     if (state.species === "bird") add("perch", p.curiosity*.2 + d.comfort*.12, "bird seeks a perch");

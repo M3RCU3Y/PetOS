@@ -115,10 +115,20 @@ export class Pet {
     this.remember({kind:"petting",atMs:world.nowMs,valence:.85,salience:.7*amount,note:"The user gave affectionate attention",...(world.currentSurface?{surfaceId:world.currentSurface.id}:{}),...(world.foregroundApp?{app:world.foregroundApp}:{})});
   }
 
-  frighten(world:WorldSnapshot, note="sudden movement"):void {
+  frighten(nowMs:number, note="sudden movement"):void {
     this.state.affect.stress=clamp(this.state.affect.stress+.35);
     this.state.affect.arousal=clamp(this.state.affect.arousal+.25);
-    this.remember({kind:"fright",atMs:world.nowMs,valence:-.6,salience:.7,note});
+    this.remember({kind:"fright",atMs:nowMs,valence:-.6,salience:.7,note});
+  }
+
+  startleReaction(nowMs:number, note="startled"):void {
+    this.frighten(nowMs,note);
+    if(!["sleep","eat","drink"].includes(this.state.behavior)){
+      this.state.behavior="startle";
+      this.state.behaviorSinceMs=nowMs;
+      this.state.behaviorTargetId=null;
+      this.state.body.target=null;
+    }
   }
 
   rememberSocial(otherId:string, world:WorldSnapshot, valence=.5):void {
