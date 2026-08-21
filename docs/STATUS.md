@@ -4,8 +4,19 @@
 
 - TypeScript strict compilation
 - static web build
-- 71 deterministic engine tests
-- **full release bundle**: `npm run tauri:build` produces `PetOS_0.2.0_x64_en-US.msi` (5.8 MB) and `PetOS_0.2.0_x64-setup.exe` (3.8 MB) — unsigned, ready for local install testing
+- 79 deterministic engine tests
+- **full release bundle**: `npm run tauri:build` produces `PetOS_0.2.0_x64_en-US.msi` and `PetOS_0.2.0_x64-setup.exe` — unsigned, ready for local install testing
+
+## Backend architecture
+
+- **SQLite** (`petos.db`, via `tauri-plugin-sql`) is the primary store when running natively:
+  - `pets` — full state/appearance/memory blobs per pet (fast restore path)
+  - `objects` — habitat furniture rows
+  - `settings` — key/value JSON
+  - `events` — normalized, append-only episodic history across all pets with `(pet_id, at_ms)` and `(kind, at_ms)` indexes for long-term queries ("which app does she love most?", "how often do the two cats fight?")
+- localStorage JSON remains an always-written instant fallback/backup; browser habitat uses it exclusively.
+- **Reliability**: single-instance guard (second launch can't double-spawn overlays), panic hook + frontend breadcrumbs appended to `%TEMP%\petos-logs\petos.log`.
+- **Updates**: opt-in manifest URL; semver comparison only, never auto-installs.
 - headless behavior simulation (walk → stalk → groom → investigate arcs)
 - save/restore memory path (including toy prefs, rich relationships, diary, routines)
 - multi-pet simulation path
@@ -66,5 +77,5 @@ state (`OpenInputDesktop`).
 - [x] automated nightmare-QA stress test (monitor unplug, window snaps, explorer restart) in `tests/stress.test.mjs`
 - [x] installer bundling verified end-to-end (MSI + NSIS artifacts built locally)
 - [ ] production sprite packs / real-pet morphology mapping beyond palette + markings classification (pipeline ready; awaiting art)
-- [ ] signed installers + update endpoint (artifacts build unsigned; updater needs signing keys)
-- [ ] SQLite persistence backend (JSON store is durable + migration-ready)
+- [ ] signed installers + update endpoint (checker scaffolding done; needs signing keys + hosted manifest)
+- [x] SQLite persistence backend (primary native store + normalized event history; JSON fallback)

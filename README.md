@@ -29,6 +29,8 @@ PetOS is not a random sprite wandering over your taskbar. Every pet has species 
 - Circadian weighting, so time of day subtly changes rest/play tendencies
 - In-app diary (achievements) and life log sourced from episodic memory
 - Persistent pets — memory, appearance, diary, routines and habits survive restarts — plus export/import backups
+- **SQLite backend** when running natively: full state restore plus a normalized append-only `events` table (indexed by pet and time) for long-term memory analysis; JSON store remains as instant fallback
+- Single-instance guard, panic logging and lifecycle breadcrumbs (`%TEMP%\petos-logs\petos.log`) for painless runtime debugging
 - Built-in pet packs plus JSON community pack import with detailed validation, version compatibility and SHA-256 trust fingerprints
 - **Sprite-sheet pipeline**: packs can ship real art (`appearance.sheet`: strip image, frame size, per-behavior rows) with behavior alias resolution and graceful fallback to procedural art until sheets load
 - Real-pet recreation: photo import extracts coat/accent/eye palette **and classifies markings** (tuxedo / tabby / patched / uniform) rendered on the procedural pet
