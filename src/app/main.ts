@@ -1,7 +1,7 @@
 import { Pet } from "../core/pet.js";
 import { PetOSSimulation, type DesktopFrame } from "../core/simulation.js";
 import { BrowserPersistence, DEFAULT_SETTINGS } from "../core/persistence.js";
-import type { PetOSSettings, Rect } from "../core/types.js";
+import type { PetAppearance, PetOSSettings, Rect, WorldObject } from "../core/types.js";
 import type { PetPack } from "../core/packs.js";
 import { createDesktopBridge } from "./bridge.js";
 import { PixelRenderer } from "./renderer.js";
@@ -25,7 +25,8 @@ const ui=new SettingsUI({
   onToggleDebug(enabled){settings.debug=enabled;persist();},
   onToggleEnabled(enabled){settings.enabled=enabled;running=enabled;void bridge.setOverlayVisible(enabled);persist();},
   onAddPet(pack,name){addPet(pack,name);},onRemovePet(id){sim.removePet(id);persist();},
-  onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const radius=kind==="bed"?38:kind==="box"?34:11;sim.addObject({id:crypto.randomUUID(),kind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{})});persist();},
+  onAddObject(kind){const pet=[...sim.pets.values()][0];const p=pet?.state.body.position??{x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height*.8};const objectKind=kind==="food"||kind==="water"?"bowl":kind;const radius=kind==="bed"?38:kind==="box"?34:kind==="scratcher"?25:kind==="ball"?11:18;sim.addObject({id:crypto.randomUUID(),kind:objectKind,position:{x:p.x+80,y:p.y-(kind==="ball"?10:0)},radius,...(kind==="bed"?{comfort:.95}:{}),...((kind==="food"||kind==="water")?{contents:kind}:{})});persist();},
+  onPrivacyLevel(level){settings.privacyLevel=level;persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onReset(){persistence.clear();location.reload();}
 },settings);
@@ -38,7 +39,7 @@ function persist():void{persistence.save({version:1,pets:sim.records(),objects:s
 async function refreshNative(now:number):Promise<void>{if(now-lastNativePoll<100)return;lastNativePoll=now;try{lastNative=await bridge.snapshot();virtualBounds=boundsFromMonitors(lastNative.monitors);}catch(err){console.warn("PetOS desktop snapshot failed",err);}}
 function boundsFromMonitors(monitors:any[]):Rect{if(!monitors?.length)return{x:0,y:0,width:innerWidth,height:innerHeight};const x=Math.min(...monitors.map(m=>m.rect.x)),y=Math.min(...monitors.map(m=>m.rect.y)),r=Math.max(...monitors.map(m=>m.rect.x+m.rect.width)),b=Math.max(...monitors.map(m=>m.rect.y+m.rect.height));return{x,y,width:r-x,height:b-y};}
 
-async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled){await refreshNative(now);if(lastNative){const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:lastNative.user_activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode};const state=sim.tick(input);renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));}}
+async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled){await refreshNative(now);if(lastNative){const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:lastNative.user_activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode};const state=sim.tick(input);renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 

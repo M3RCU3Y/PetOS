@@ -4,7 +4,7 @@
 
 - TypeScript strict compilation
 - static web build
-- 11 deterministic engine tests
+- 13 deterministic engine tests
 - headless behavior simulation
 - save/restore memory path
 - multi-pet simulation path
@@ -12,6 +12,8 @@
 - cursor prey response
 - Keeper fullscreen suppression
 - physics surface landing
+- moving-window surface attachment / window riding
+- food-bowl utility selection
 - community pack validation
 
 Commands used:

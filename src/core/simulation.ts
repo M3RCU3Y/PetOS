@@ -11,6 +11,7 @@ export class PetOSSimulation {
   readonly appearances=new Map<string,PetRecord["appearance"]>();
   readonly objects:WorldObject[]=[];
   private readonly physics=new PetPhysics();
+  private previousSurfaces=new Map<string,{x:number;y:number;walkY:number}>();
 
   addPet(pet:Pet,appearance:PetRecord["appearance"]={coat:"#d98742",accent:"#f2c287",eye:"#d7ef76",scale:1}):void{this.pets.set(pet.state.id,pet);this.appearances.set(pet.state.id,appearance);}
   removePet(id:string):void{this.pets.delete(id);this.appearances.delete(id);}
@@ -20,6 +21,19 @@ export class PetOSSimulation {
   tick(frame:DesktopFrame):SimFrame{
     const states=[...this.pets.values()].map(p=>p.state);
     const surfaces=surfacesFromDesktop(frame.monitors,frame.windows,this.objects);
+    // A pet attached to a window rides that window instead of being left behind.
+    // This is computed before cognition so its perceived world already reflects the move.
+    for(const surface of surfaces){
+      const previous=this.previousSurfaces.get(surface.id);
+      if(previous){
+        const dx=surface.rect.x-previous.x,dy=surface.walkY-previous.walkY;
+        if(Math.abs(dx)+Math.abs(dy)>.01){
+          surface.moving=true;surface.velocity={x:dx/(Math.max(frame.dtMs,1)/1000),y:dy/(Math.max(frame.dtMs,1)/1000)};
+          for(const pet of this.pets.values())if(pet.state.body.grounded&&pet.state.body.surfaceId===surface.id){pet.state.body.position.x+=dx;pet.state.body.position.y+=dy;}
+        }
+      }
+    }
+    this.previousSurfaces=new Map(surfaces.map(s=>[s.id,{x:s.rect.x,y:s.rect.y,walkY:s.walkY}]));
     const decisions:Record<string,{behavior:string;reason:string;score:number}>={};
     for(const pet of this.pets.values()){
       const world=buildWorldForPet({nowMs:frame.nowMs,dtMs:frame.dtMs,userActivity:frame.userActivity,surfaces,objects:this.objects,windows:frame.windows,monitors:frame.monitors,foregroundApp:frame.foregroundApp,secondsSinceNewWindow:frame.secondsSinceNewWindow,interactionMode:frame.interactionMode,cursorPosition:frame.cursorPosition,cursorSpeed:frame.cursorSpeed,cursorButtons:frame.cursorButtons},pet.state,states);

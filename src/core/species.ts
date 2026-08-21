@@ -11,7 +11,7 @@ const cat: SpeciesProfile = {
   species: "cat",
   defaultPersonality: { energy:.55, curiosity:.82, boldness:.58, sociability:.45, affection:.62, patience:.45, playfulness:.72, independence:.76, foodDrive:.52 },
   movement: { walkSpeed: 62, runSpeed: 170, jumpSpeed: 310, gravity: 900, bodyWidth: 54, bodyHeight: 44 },
-  behaviorBias: { groom:.22, sleep:.18, chase_cursor:.3, pounce:.22, climb:.25, perch:.28, investigate:.2, seek_user:.02 }
+  behaviorBias: { groom:.22, sleep:.18, chase_cursor:.3, pounce:.22, climb:.25, perch:.28, investigate:.2, seek_user:.02, scratch:.3 }
 };
 const dog: SpeciesProfile = {
   species: "dog",

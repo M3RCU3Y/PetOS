@@ -10,7 +10,7 @@ export class PetPhysics {
     if(body.held){body.velocity={x:0,y:0};return;}
     const target=this.resolveTarget(state,world);
     const behavior=state.behavior;
-    const locomotion=["walk","investigate","seek_user","follow_pet","play_toy","play_pet","greet_pet","hide","perch"].includes(behavior);
+    const locomotion=["walk","investigate","seek_user","follow_pet","play_toy","play_pet","greet_pet","hide","perch","eat","drink","scratch"].includes(behavior);
     const fast=["run","chase_cursor","zoomies","pounce"].includes(behavior);
     if(target && (locomotion||fast)){
       const dx=target.x-body.position.x;

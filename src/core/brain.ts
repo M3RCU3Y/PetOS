@@ -8,11 +8,11 @@ const BASE: Record<Behavior, number> = {
   idle:.24, walk:.2, run:.02, sit:.2, sleep:.02, groom:.05, stretch:.035,
   investigate:.02, chase_cursor:0, pounce:0, seek_user:.01, zoomies:0,
   jump:.01, climb:0, perch:.02, hide:0, eat:0, drink:0,
-  play_toy:0, carry_toy:0, follow_pet:0, play_pet:0, greet_pet:0
+  play_toy:0, carry_toy:0, follow_pet:0, play_pet:0, greet_pet:0, scratch:0
 };
 const MIN_DURATION_MS: Partial<Record<Behavior, number>> = {
   sleep: 14_000, groom: 4_000, sit: 3_000, idle: 1_800, chase_cursor: 2_000, investigate: 2_600,
-  seek_user: 3_000, play_pet: 3_000, play_toy: 3_000, zoomies: 4_000, carry_toy: 3_000, perch: 4_000
+  seek_user: 3_000, play_pet: 3_000, play_toy: 3_000, zoomies: 4_000, carry_toy: 3_000, perch: 4_000, eat: 4_000, drink: 3_000, scratch: 3_000
 };
 
 export class PetBrain {
@@ -34,10 +34,13 @@ export class PetBrain {
     };
 
     const p = state.personality, d = state.drives, a = state.affect;
+    const hour = new Date(world.nowMs).getHours();
+    const nocturnalRest = (hour >= 0 && hour < 6) ? .12 : 0;
+    const eveningCatBurst = state.species === "cat" && (hour >= 18 || hour < 1) ? .08 : 0;
     const keeper = world.userActivity === "fullscreen" || world.userActivity === "gaming" || world.userActivity === "presentation" ? .12 : 1;
     const calm = 1 - a.stress;
 
-    add("sleep", d.fatigue * .9 + d.comfort * .12 + (1-p.energy)*.15 - a.arousal*.18, "sleep pressure and comfort");
+    add("sleep", d.fatigue * .9 + d.comfort * .12 + (1-p.energy)*.15 + nocturnalRest - a.arousal*.18, "sleep pressure, comfort and circadian rhythm");
     add("groom", calm*.14 + d.comfort*.12 + p.patience*.1, "self-maintenance while calm");
     add("stretch", d.fatigue*.08 + calm*.08, "body maintenance");
     add("idle", calm*.16 + p.patience*.09, "observe the environment");
@@ -58,7 +61,7 @@ export class PetBrain {
 
     add("seek_user", (d.social*.5 + p.affection*.28 + (1-p.independence)*.12) * keeper, keeper < 1 ? "Keeper suppresses interruption" : "social drive seeks user", { position:world.cursor.position });
 
-    if (d.play > .72 && d.fatigue < .45 && p.energy > .5) add("zoomies", d.play*.35 + p.energy*.35 + a.arousal*.18, "stored play energy erupts into zoomies");
+    if (d.play > .72 && d.fatigue < .45 && p.energy > .5) add("zoomies", d.play*.35 + p.energy*.35 + a.arousal*.18 + eveningCatBurst, "stored play energy erupts into zoomies");
 
     const nearestPet = [...world.nearbyPets].sort((a,b)=>a.distance-b.distance)[0];
     if (nearestPet && nearestPet.distance < 450) {
@@ -72,6 +75,12 @@ export class PetBrain {
 
     const ball = world.objects.find(o => (o.kind === "ball" || o.kind === "toy"));
     if (ball) add("play_toy", d.play*.43 + p.playfulness*.33 - d.fatigue*.2, "toy available", {id:ball.id,position:ball.position});
+    const food = world.objects.find(o => o.kind === "bowl" && o.contents === "food");
+    if (food) add("eat", d.hunger*.92 + p.foodDrive*.18, "hunger and food are available", {id:food.id,position:food.position});
+    const water = world.objects.find(o => o.kind === "bowl" && o.contents === "water");
+    if (water) add("drink", d.thirst*.96, "thirst and water are available", {id:water.id,position:water.position});
+    const scratcher = world.objects.find(o => o.kind === "scratcher");
+    if (scratcher && state.species === "cat") add("scratch", .16 + p.energy*.12 + d.play*.12, "cat maintenance and territory behavior", {id:scratcher.id,position:scratcher.position});
     const bed = world.objects.find(o => o.kind === "bed");
     if (bed && d.fatigue > .55) add("sleep", d.fatigue*.96 + (bed.comfort ?? .7)*.25, "comfortable bed available", {id:bed.id,position:bed.position});
     const box = world.objects.find(o => o.kind === "box");

@@ -60,7 +60,7 @@ export class Pet {
     d.fatigue = clamp(d.fatigue + dt*(.00045 + p.energy*.0003) - (b==="sleep"?dt*.0085:0));
     d.hunger = clamp(d.hunger + dt*.00022 - (b==="eat"?dt*.02:0));
     d.thirst = clamp(d.thirst + dt*.0003 - (b==="drink"?dt*.025:0));
-    d.play = clamp(d.play + dt*.00055*(.5+p.playfulness) - (["chase_cursor","play_toy","play_pet","zoomies","pounce"].includes(b)?dt*.005:0));
+    d.play = clamp(d.play + dt*.00055*(.5+p.playfulness) - (["chase_cursor","play_toy","play_pet","zoomies","pounce","scratch"].includes(b)?dt*.005:0));
     d.social = clamp(d.social + dt*.00035*(.5+p.sociability) - (["seek_user","play_pet","greet_pet","follow_pet"].includes(b)?dt*.0035:0));
     d.curiosity = clamp(d.curiosity + dt*.00042*(.5+p.curiosity) - (["investigate","walk","perch"].includes(b)?dt*.0025:0));
     const surfaceComfort = world.currentSurface?.comfort ?? .25;
@@ -69,7 +69,7 @@ export class Pet {
 
   private updateAffect(world:WorldSnapshot,dt:number):void {
     const a=this.state.affect,d=this.state.drives,b=this.state.behavior;
-    const positive = (["play_pet","play_toy","greet_pet","sleep","groom"].includes(b)? .55: .32) + this.state.bond*.16;
+    const positive = (["play_pet","play_toy","greet_pet","sleep","groom","scratch","eat","drink"].includes(b)? .55: .32) + this.state.bond*.16;
     a.valence = clamp(lerp(a.valence,positive,dt*.07),-1,1);
     const desiredArousal = ["run","zoomies","chase_cursor","pounce"].includes(b)?.86:b==="sleep"?.05:.3+d.play*.18;
     a.arousal = clamp(lerp(a.arousal,desiredArousal,dt*.12));

@@ -4,7 +4,7 @@ export type Behavior =
   | "idle" | "walk" | "run" | "sit" | "sleep" | "groom" | "stretch"
   | "investigate" | "chase_cursor" | "pounce" | "seek_user" | "zoomies"
   | "jump" | "climb" | "perch" | "hide" | "eat" | "drink"
-  | "play_toy" | "carry_toy" | "follow_pet" | "play_pet" | "greet_pet";
+  | "play_toy" | "carry_toy" | "follow_pet" | "play_pet" | "greet_pet" | "scratch";
 
 export type UserActivity = "idle" | "active" | "typing" | "media" | "gaming" | "fullscreen" | "presentation";
 export type SurfaceKind = "taskbar" | "window" | "monitor_floor" | "furniture";
@@ -70,6 +70,7 @@ export interface WorldObject {
   radius: number;
   comfort?: number;
   ownerPetId?: string;
+  contents?: "food" | "water";
 }
 
 export interface NearbyPet {

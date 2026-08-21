@@ -15,8 +15,11 @@ PetOS is not a random sprite wandering over your taskbar. Every pet has species 
 - Desktop topology from monitors, work areas, taskbar edges, and visible windows
 - Cursor sensing and contextual chase/pounce behavior
 - Gravity, jumping, falling, landing, walking, running and target following
+- Window riding: grounded pets inherit window motion instead of sliding off reality
 - Multi-pet simulation and social behaviors
-- Habitat objects: beds, balls and boxes
+- Habitat objects: beds, balls, boxes, food bowls, water bowls and cat scratchers
+- Circadian weighting, so time of day subtly changes rest/play tendencies
+- In-app life log sourced from episodic memory
 - Persistent pets, memory, appearance, objects and settings in local storage
 - Built-in pet packs plus JSON community pack import
 - Pixel renderer for all four starter species
