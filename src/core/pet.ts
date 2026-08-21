@@ -3,6 +3,7 @@ import { clamp, lerp } from "./math.js";
 import { PetMemory } from "./memory.js";
 import { SeededRandom, type RandomSource } from "./rng.js";
 import { SPECIES, personalityFor } from "./species.js";
+import { ambientReaction, categorizeApp } from "./ambient.js";
 import type { Decision, EpisodicMemory, PetSave, PetState, Personality, Species, WorldSnapshot } from "./types.js";
 
 export interface PetInit { id:string; name:string; species:Species; nowMs:number; personality?:Partial<Personality>; x?:number; y?:number; }
@@ -57,6 +58,16 @@ export class Pet {
   }
 
   private updateDrives(world:WorldSnapshot,dt:number):void {
+    const reaction=ambientReaction({
+      activity:world.userActivity,
+      charging:false,
+      batteryLevel:null,
+      idleSeconds:0,
+      foregroundApp:world.foregroundApp,
+      hourOfDay:new Date(world.nowMs).getHours()
+    });
+    this.state.affect.valence=clamp(this.state.affect.valence+reaction.moodShift*dt*.02,-1,1);
+    this.state.drives.fatigue=clamp(this.state.drives.fatigue-reaction.energyShift*dt*.001);
     const d=this.state.drives,p=this.state.personality,b=this.state.behavior;
     d.fatigue = clamp(d.fatigue + dt*(.00045 + p.energy*.0003) - (b==="sleep"?dt*.0085:0));
     d.hunger = clamp(d.hunger + dt*.00022 - (b==="eat"?dt*.02:0));
