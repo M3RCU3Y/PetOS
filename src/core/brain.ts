@@ -2,6 +2,7 @@ import { clamp } from "./math.js";
 import type { Behavior, Decision, DecisionScore, PetState, WorldSnapshot } from "./types.js";
 import type { SpeciesProfile } from "./species.js";
 import type { PetMemory } from "./memory.js";
+import { ObjectPermanence } from "./objectMemory.js";
 import type { RandomSource } from "./rng.js";
 
 const BASE: Record<Behavior, number> = {
@@ -16,6 +17,7 @@ const MIN_DURATION_MS: Partial<Record<Behavior, number>> = {
 };
 
 export class PetBrain {
+  private readonly objects = new ObjectPermanence();
   constructor(private readonly profile: SpeciesProfile, private readonly rng: RandomSource) {}
 
   decide(state: PetState, world: WorldSnapshot, memory: PetMemory): Decision {
@@ -25,6 +27,7 @@ export class PetBrain {
       return { behavior: state.behavior, score: 1, reason: "behavior inertia", ...(state.behaviorTargetId ? {targetId:state.behaviorTargetId}:{}), allScores: [] };
     }
 
+    this.objects.observe(world.objects, world.nowMs);
     const scores: DecisionScore[] = [];
     const add = (behavior: Behavior, value: number, reason: string, target?: { id?: string; position?: {x:number;y:number} }) => {
       const bias = this.profile.behaviorBias[behavior] ?? 0;
@@ -76,6 +79,11 @@ export class PetBrain {
     const ball = world.objects.find(o => (o.kind === "ball" || o.kind === "toy"));
     if (ball) add("play_toy", d.play*.43 + p.playfulness*.33 - d.fatigue*.2, "toy available", {id:ball.id,position:ball.position});
     const food = world.objects.find(o => o.kind === "bowl" && o.contents === "food");
+
+    if (!food && d.hunger > .6 && this.objects.knowsAbout("bowl")) {
+      const remembered = this.objects.findNearest("bowl", state.body.position);
+      if (remembered) add("investigate", d.hunger*.4 + .1, "remembers where food usually is", { id: remembered.id, position: remembered.lastPosition });
+    }
     if (food) add("eat", d.hunger*.92 + p.foodDrive*.18, "hunger and food are available", {id:food.id,position:food.position});
     const water = world.objects.find(o => o.kind === "bowl" && o.contents === "water");
     if (water) add("drink", d.thirst*.96, "thirst and water are available", {id:water.id,position:water.position});
