@@ -124,6 +124,51 @@ export class Pet {
     this.remember({kind:"petting",atMs:world.nowMs,valence:.85,salience:.7*amount,note:"The user gave affectionate attention",...(world.currentSurface?{surfaceId:world.currentSurface.id}:{}),...(world.foregroundApp?{app:world.foregroundApp}:{})});
   }
 
+  /** Shy pets dislike being suddenly grabbed; bold, playful ones shrug it off. */
+  receivePickup(world:WorldSnapshot):void{
+    const p=this.state.personality;
+    if(p.boldness<.35){
+      this.state.affect.stress=clamp(this.state.affect.stress+.18);
+      this.remember({kind:"fright",atMs:world.nowMs,valence:-.35,salience:.4,note:"Was grabbed without warning"});
+    }else if(p.playfulness>.7){
+      this.state.affect.arousal=clamp(this.state.affect.arousal+.12);
+    }
+    this.state.lastInteractionMs=world.nowMs;
+  }
+
+  /** Personality decides whether a call is worth answering. Returns false when ignored. */
+  respondToCall(world:WorldSnapshot,target:{x:number;y:number}):boolean{
+    const p=this.state.personality;
+    const willingness=clamp(p.affection*.35+this.state.bond*.35+(1-p.independence)*.3);
+    if(this.rng.next()>willingness+.15){
+      this.state.boredom=clamp(this.state.boredom+.02);
+      return false;
+    }
+    this.state.body.target={...target};
+    this.state.behavior="seek_user";
+    this.state.behaviorSinceMs=world.nowMs;
+    this.state.lastInteractionMs=world.nowMs;
+    return true;
+  }
+
+  wakeUp(world:WorldSnapshot):void{
+    if(this.state.behavior!=="sleep")return;
+    this.state.behavior="stretch";
+    this.state.behaviorSinceMs=world.nowMs;
+    this.state.affect.arousal=clamp(this.state.affect.arousal+.3);
+    this.state.drives.fatigue=clamp(this.state.drives.fatigue-.15);
+    this.remember({kind:"discovery",atMs:world.nowMs,valence:.1,salience:.25,note:"Was gently woken"});
+  }
+
+  brush(world:WorldSnapshot):void{
+    this.state.affect.valence=clamp(this.state.affect.valence+.14,-1,1);
+    this.state.affect.stress=clamp(this.state.affect.stress-.22);
+    this.state.drives.comfort=clamp(this.state.drives.comfort+.12);
+    this.state.bond=clamp(this.state.bond+.008);
+    this.state.lastInteractionMs=world.nowMs;
+    this.remember({kind:"petting",atMs:world.nowMs,valence:.75,salience:.5,note:"Enjoyed a gentle brushing",...(world.currentSurface?{surfaceId:world.currentSurface.id}:{})});
+  }
+
   frighten(nowMs:number, note="sudden movement"):void {
     this.state.affect.stress=clamp(this.state.affect.stress+.35);
     this.state.affect.arousal=clamp(this.state.affect.arousal+.25);

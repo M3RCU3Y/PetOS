@@ -1,6 +1,6 @@
 import type { PetState, Vec2 } from "../core/types.js";
 
-export type InteractionKind = "pet" | "feed" | "call" | "laser";
+export type InteractionKind = "pet" | "feed" | "call" | "laser" | "wake" | "brush";
 
 export interface InteractionTarget {
   petId: string;
@@ -37,6 +37,8 @@ export class InteractionManager {
     this.menu.innerHTML = `
       <button data-action="pet">Pet</button>
       <button data-action="feed">Feed</button>
+      <button data-action="brush">Brush</button>
+      <button data-action="wake">Wake</button>
       <button data-action="call">Call</button>
     `;
     this.menu.style.left = `${e.clientX}px`;

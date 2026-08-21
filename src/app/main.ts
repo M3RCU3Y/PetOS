@@ -28,8 +28,13 @@ const interactions=new InteractionManager(canvas,(target)=>{
   if(!pet)return;
   const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true};
   if(target.kind==="pet")pet.receivePetting(world,.6);
+  else if(target.kind==="brush")pet.brush(world);
+  else if(target.kind==="wake")pet.wakeUp(world);
   else if(target.kind==="feed"){pet.state.drives.hunger=Math.max(0,pet.state.drives.hunger-.3);pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.15);}
-  else if(target.kind==="call")pet.state.body.target={...target.position};
+  else if(target.kind==="call"){
+    const worldPoint={x:target.position.x+virtualBounds.x,y:target.position.y+virtualBounds.y};
+    pet.respondToCall(world,worldPoint);
+  }
 });
 const thoughts=new ThoughtBubbles();
 const photography=new PhotographyMode(renderer);
@@ -123,7 +128,7 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 
-canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));if(!pet)return;dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));if(!pet)return;dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;pet.receivePickup({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:worldX,y:worldY},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true});canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener("pointermove",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
 canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
