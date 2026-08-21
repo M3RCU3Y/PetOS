@@ -220,4 +220,5 @@ export interface PetOSSettings {
   sound: boolean;
   soundVolume: number;
   quietHours: boolean;
+  cortexProvider: "off" | "ollama";
 }

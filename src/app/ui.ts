@@ -21,6 +21,7 @@ export interface UIActions {
   onToggleSound(enabled:boolean):void;
   onSoundVolume(volume:number):void;
   onToggleQuietHours(enabled:boolean):void;
+  onCortexProvider(provider:"off"|"ollama"):void;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -93,6 +94,8 @@ export class SettingsUI {
     const soundToggle=document.querySelector<HTMLInputElement>("#sound-toggle")!;soundToggle.checked=settings.sound;soundToggle.addEventListener("change",()=>this.actions.onToggleSound(soundToggle.checked));
     const volume=document.querySelector<HTMLInputElement>("#sound-volume")!;volume.value=String(settings.soundVolume);volume.addEventListener("input",()=>this.actions.onSoundVolume(Number(volume.value)));
     const quiet=document.querySelector<HTMLInputElement>("#quiet-hours-toggle")!;quiet.checked=settings.quietHours;quiet.addEventListener("change",()=>this.actions.onToggleQuietHours(quiet.checked));
+    const cortex=document.querySelector<HTMLSelectElement>("#cortex-provider");
+    if(cortex){cortex.value=settings.cortexProvider;cortex.addEventListener("change",()=>this.actions.onCortexProvider(cortex.value as "off"|"ollama"));}
     document.querySelector("#export-state")?.addEventListener("click",()=>this.actions.onExportState());
     document.querySelector("#import-state")?.addEventListener("click",()=>{document.querySelector<HTMLInputElement>("#import-file")?.click();});
     const importFile=document.querySelector<HTMLInputElement>("#import-file");

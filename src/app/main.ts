@@ -12,6 +12,7 @@ import { InteractionManager, type InteractionTarget } from "./interaction.js";
 import { FurnitureEditor, FURNITURE_TEMPLATES, type FurnitureTemplate } from "./furniture.js";
 import { ThoughtBubbles, generateThought } from "./thoughts.js";
 import { weatherFor, eventFor, weatherEffect } from "../core/weather.js";
+import { createCortex } from "../core/cortex.js";
 import { PhotographyMode } from "./photography.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
@@ -59,7 +60,8 @@ interactions.setPetFinder((x,y)=>{
   for(const pet of [...sim.pets.values()].reverse()){if(renderer.hitTest(pet.state,point,virtualBounds))return pet.state;}
   return null;
 });
-let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0;
+let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0;
+let cortex=createCortex(settings.cortexProvider);
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{sim.addPet(Pet.fromSave(rec.save),rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
@@ -81,6 +83,7 @@ const ui=new SettingsUI({
   onToggleSound(enabled){settings.sound=enabled;sound.setEnabled(enabled);persist();},
   onSoundVolume(volume){settings.soundVolume=volume;sound.setVolume(volume);persist();},
   onToggleQuietHours(enabled){settings.quietHours=enabled;sound.setQuietHours(enabled);persist();},
+  onCortexProvider(provider){settings.cortexProvider=provider;cortex=createCortex(provider);persist();},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},
@@ -109,6 +112,24 @@ if("getBattery" in navigator){
 }
 function mediaPlaying():boolean{try{return navigator.mediaSession?.playbackState==="playing";}catch{return false;}}
 
+const CORTEX_PHRASES:Record<string,string[]>={
+  seek_attention:["I could use a little attention…","Where did everyone go?"],
+  settle:["Time to just be cozy.","Everything is calm right now."],
+  explore:["Something over there looks interesting.","Let me check that out."],
+  play:["Play with me!","I've got so much energy!"]
+};
+async function reflectCortex():Promise<void>{
+  for(const pet of sim.pets.values()){
+    try{
+      const world={nowMs:Date.now(),dtMs:16,userActivity:lastNative?.user_activity??"active",cursor:{position:lastNative?.cursor??{x:0,y:0},speed:0,distanceToPet:200,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:false,idleSeconds:lastNative?.idle_seconds??0,locked:lastNative?.locked??false,batteryLevel,charging:batteryCharging};
+      const intention=await cortex.reflect(pet.state,world);
+      if(intention.kind==="none"||intention.confidence<.55)continue;
+      const phrases=[intention.note,...CORTEX_PHRASES[intention.kind]??[]];
+      thoughts.show(pet.state,phrases[0]!,pet.state.body.position.x+virtualBounds.x,pet.state.body.position.y+virtualBounds.y);
+    }catch{/* cortex is best-effort */}
+  }
+}
+
 async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled&&!document.hidden){
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
       await refreshNative(now);if(lastNative){
@@ -123,6 +144,7 @@ async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFra
       if(Math.random()<.008){for(const pet of sim.pets.values()){const text=generateThought(pet.state);if(text)thoughts.show(pet.state,text,pet.state.body.position.x+virtualBounds.x,pet.state.body.position.y+virtualBounds.y);}}
       thoughts.update(state.pets,virtualBounds.x,virtualBounds.y);
       if(now-lastSocialGraphUpdate>2500){lastSocialGraphUpdate=now;const relData:Record<string,Record<string,number>>={};for(const pet of sim.pets.values())relData[pet.state.id]=pet.memory.relationshipsSnapshot();ui.setRelationships(relData);}
+      if(now-lastCortexReflect>30_000&&!lastNative?.locked){lastCortexReflect=now;void reflectCortex();}
       renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));
       ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
