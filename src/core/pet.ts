@@ -77,9 +77,9 @@ export class Pet {
   private updateDrives(world:WorldSnapshot,dt:number):void {
     const reaction=ambientReaction({
       activity:world.userActivity,
-      charging:false,
-      batteryLevel:null,
-      idleSeconds:0,
+      charging:world.charging,
+      batteryLevel:world.batteryLevel,
+      idleSeconds:world.locked?Math.max(world.idleSeconds,300):world.idleSeconds,
       foregroundApp:world.foregroundApp,
       hourOfDay:new Date(world.nowMs).getHours()
     });

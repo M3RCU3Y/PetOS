@@ -121,6 +121,10 @@ export interface WorldSnapshot {
   secondsSinceNewWindow: number;
   currentSurface: Surface | null;
   interactionMode: boolean;
+  idleSeconds: number;
+  locked: boolean;
+  batteryLevel: number | null;
+  charging: boolean;
 }
 
 export interface DecisionScore {

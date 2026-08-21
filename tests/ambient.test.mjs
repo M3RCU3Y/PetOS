@@ -20,3 +20,20 @@ test("media makes pets drowsy", () => {
   assert.ok(r.energyShift < 0);
   assert.ok(r.moodShift > 0);
 });
+
+test("long user idle lets the pet relax", () => {
+  const r = ambientReaction({ activity: "idle", charging: true, batteryLevel: null, idleSeconds: 600, foregroundApp: null, hourOfDay: 12 });
+  assert.ok(r.energyShift > 0);
+});
+
+test("low battery away from a charger conserves energy", () => {
+  const r = ambientReaction({ activity: "active", charging: false, batteryLevel: .12, idleSeconds: 0, foregroundApp: null, hourOfDay: 12 });
+  assert.ok(r.energyShift < 0);
+  assert.ok(r.moodShift <= 0);
+});
+
+test("locked workstation reads as keeper-away calm", () => {
+  // main.ts maps locked → idleSeconds floor of 300s
+  const r = ambientReaction({ activity: "idle", charging: true, batteryLevel: null, idleSeconds: Math.max(0, 300), foregroundApp: null, hourOfDay: 14 });
+  assert.ok(r.energyShift >= 0);
+});

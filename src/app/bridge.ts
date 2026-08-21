@@ -9,6 +9,8 @@ interface NativeDesktopSnapshot {
   foreground_app: string | null;
   user_activity: UserActivity;
   seconds_since_new_window: number;
+  idle_seconds: number;
+  locked: boolean;
 }
 
 type TauriGlobal = {
@@ -44,11 +46,18 @@ export class MockDesktopBridge implements DesktopBridge {
   private speed=0;
   private interaction=false;
   private listeners=new Set<()=>void>();
-  constructor(){window.addEventListener("pointermove",e=>{const now=performance.now(),dt=Math.max(1,now-this.prev.t);this.cursor={x:e.clientX,y:e.clientY};this.speed=Math.hypot(e.clientX-this.prev.x,e.clientY-this.prev.y)/(dt/1000);this.prev={x:e.clientX,y:e.clientY,t:now};});}
+  private lastInputAt=performance.now();
+  constructor(){
+    const markInput=()=>{this.lastInputAt=performance.now();};
+    window.addEventListener("pointermove",e=>{const now=performance.now(),dt=Math.max(1,now-this.prev.t);markInput();this.cursor={x:e.clientX,y:e.clientY};this.speed=Math.hypot(e.clientX-this.prev.x,e.clientY-this.prev.y)/(dt/1000);this.prev={x:e.clientX,y:e.clientY,t:now};});
+    window.addEventListener("keydown",markInput);
+    window.addEventListener("pointerdown",markInput);
+  }
   async snapshot():Promise<NativeDesktopSnapshot>{
     if(performance.now()-this.prev.t>160)this.speed=0;
     const w=window.innerWidth,h=window.innerHeight;
-    return{monitors:[{id:"browser",rect:{x:0,y:0,width:w,height:h},workArea:{x:0,y:0,width:w,height:h-42},primary:true,scaleFactor:devicePixelRatio}],windows:[{id:"demo-code",title:"PetOS — Visual Studio Code",app:"Code.exe",rect:{x:w*.38,y:h*.18,width:w*.52,height:h*.55},visible:true,foreground:true,minimized:false}],cursor:{...this.cursor},cursor_speed:this.speed,cursor_buttons:0,foreground_app:"Code.exe",user_activity:"active",seconds_since_new_window:999};
+    const idleSeconds=(performance.now()-this.lastInputAt)/1000;
+    return{monitors:[{id:"browser",rect:{x:0,y:0,width:w,height:h},workArea:{x:0,y:0,width:w,height:h-42},primary:true,scaleFactor:devicePixelRatio}],windows:[{id:"demo-code",title:"PetOS — Visual Studio Code",app:"Code.exe",rect:{x:w*.38,y:h*.18,width:w*.52,height:h*.55},visible:true,foreground:true,minimized:false}],cursor:{...this.cursor},cursor_speed:this.speed,cursor_buttons:0,foreground_app:"Code.exe",user_activity:"active",seconds_since_new_window:999,idle_seconds:idleSeconds,locked:false};
   }
   async setInteractionMode(enabled:boolean):Promise<void>{this.interaction=enabled;void this.interaction;}
   async setOverlayVisible(_enabled:boolean):Promise<void>{}

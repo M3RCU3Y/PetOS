@@ -26,7 +26,7 @@ const prevBehaviors=new Map<string,string>();
 const interactions=new InteractionManager(canvas,(target)=>{
   const pet=sim.pets.get(target.petId);
   if(!pet)return;
-  const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true};
+  const world={nowMs:Date.now(),dtMs:16,userActivity:"active" as const,cursor:{position:target.position,speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true};
   if(target.kind==="pet")pet.receivePetting(world,.6);
   else if(target.kind==="feed"){pet.state.drives.hunger=Math.max(0,pet.state.drives.hunger-.3);pet.state.affect.valence=Math.min(1,pet.state.affect.valence+.15);}
   else if(target.kind==="call")pet.state.body.target={...target.position};
@@ -88,9 +88,24 @@ function persist():void{persistence.save({version:1,pets:sim.records(),objects:s
 async function refreshNative(now:number):Promise<void>{if(now-lastNativePoll<100)return;lastNativePoll=now;try{lastNative=await bridge.snapshot();virtualBounds=boundsFromMonitors(lastNative.monitors);}catch(err){console.warn("PetOS desktop snapshot failed",err);}}
 function boundsFromMonitors(monitors:any[]):Rect{if(!monitors?.length)return{x:0,y:0,width:innerWidth,height:innerHeight};const x=Math.min(...monitors.map(m=>m.rect.x)),y=Math.min(...monitors.map(m=>m.rect.y)),r=Math.max(...monitors.map(m=>m.rect.x+m.rect.width)),b=Math.max(...monitors.map(m=>m.rect.y+m.rect.height));return{x,y,width:r-x,height:b-y};}
 
-async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled){
+let batteryLevel:number|null=null,batteryCharging=true;
+interface BatteryManagerLike{level:number;charging:boolean;addEventListener(type:string,cb:()=>void):void;}
+if("getBattery" in navigator){
+  void (navigator as unknown as {getBattery():Promise<BatteryManagerLike>}).getBattery().then(battery=>{
+    const sync=()=>{batteryLevel=battery.level;batteryCharging=battery.charging;};
+    sync();
+    battery.addEventListener("levelchange",sync);
+    battery.addEventListener("chargingchange",sync);
+  }).catch(()=>{});
+}
+function mediaPlaying():boolean{try{return navigator.mediaSession?.playbackState==="playing";}catch{return false;}}
+
+async function frame(now:number):Promise<void>{const dt=Math.min(100,now-lastFrame);lastFrame=now;if(running&&settings.enabled&&!document.hidden){
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
-      await refreshNative(now);if(lastNative){const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:lastNative.user_activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode};const state=sim.tick(input);
+      await refreshNative(now);if(lastNative){
+        const activity:DesktopFrame["userActivity"]=lastNative.locked?"idle":mediaPlaying()&&lastNative.user_activity==="active"?"media":lastNative.user_activity;
+        const input:DesktopFrame={nowMs:Date.now(),dtMs:dt,monitors:lastNative.monitors,windows:lastNative.windows,cursorPosition:lastNative.cursor,cursorSpeed:lastNative.cursor_speed,cursorButtons:lastNative.cursor_buttons,userActivity:activity,foregroundApp:lastNative.foreground_app,secondsSinceNewWindow:lastNative.seconds_since_new_window,interactionMode:settings.interactionMode,idleSeconds:lastNative.idle_seconds??0,locked:lastNative.locked??false,batteryLevel,charging:batteryCharging};
+        const state=sim.tick(input);
       for(const pet of sim.pets.values()){const prev=prevBehaviors.get(pet.state.id);if(prev&&prev!==pet.state.behavior)sound.playBehaviorSound(pet.state.id,pet.state.species,pet.state.behavior);prevBehaviors.set(pet.state.id,pet.state.behavior);}
       if(Math.random()<.008){for(const pet of sim.pets.values()){const text=generateThought(pet.state);if(text)thoughts.show(pet.state,text,pet.state.body.position.x+virtualBounds.x,pet.state.body.position.y+virtualBounds.y);}}
       thoughts.update(state.pets,virtualBounds.x,virtualBounds.y);
@@ -101,7 +116,6 @@ requestAnimationFrame(frame);
 
 canvas.addEventListener("pointerdown",e=>{if(!settings.interactionMode)return;const point={x:e.clientX,y:e.clientY};const pet=[...sim.pets.values()].reverse().find(p=>renderer.hitTest(p.state,point,virtualBounds));if(!pet)return;dragging=pet.state.id;const worldX=e.clientX+virtualBounds.x,worldY=e.clientY+virtualBounds.y;dragOffset={x:pet.state.body.position.x-worldX,y:pet.state.body.position.y-worldY};pet.state.body.held=true;pet.state.body.grounded=false;canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener("pointermove",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(!pet)return;pet.state.body.position={x:e.clientX+virtualBounds.x+dragOffset.x,y:e.clientY+virtualBounds.y+dragOffset.y};});
-canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
+canvas.addEventListener("pointerup",e=>{if(!dragging)return;const pet=sim.pets.get(dragging);if(pet){pet.state.body.held=false;pet.state.body.velocity={x:(e.movementX||0)*18,y:Math.min(0,(e.movementY||0)*10)};pet.state.body.surfaceId=null;sound.playSpeciesVocal(pet.state.id,pet.state.species);pet.receivePetting({nowMs:Date.now(),dtMs:16,userActivity:"active",cursor:{position:{x:e.clientX+virtualBounds.x,y:e.clientY+virtualBounds.y},speed:0,distanceToPet:0,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:true,idleSeconds:0,locked:false,batteryLevel:null,charging:true},.5);}dragging=null;canvas.releasePointerCapture(e.pointerId);persist();});
 
-window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;document.querySelector("#photo-btn")?.addEventListener("click",()=>photography.download());
-void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.code==="Escape")ui.close();});
+window.addEventListener("keydown",e=>{if(e.ctrlKey&&e.shiftKey&&e.code==="KeyP"){settings.interactionMode=!settings.interactionMode;void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);persist();}if(e.code==="Escape")ui.close();});
