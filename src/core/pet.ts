@@ -3,7 +3,8 @@ import { clamp, lerp } from "./math.js";
 import { PetMemory } from "./memory.js";
 import { SeededRandom, type RandomSource } from "./rng.js";
 import { SPECIES, personalityFor } from "./species.js";
-import { ambientReaction, categorizeApp } from "./ambient.js";
+import { ambientReaction } from "./ambient.js";
+import { RoutineManager } from "./routines.js";
 import type { Decision, EpisodicMemory, PetSave, PetState, Personality, Species, WorldSnapshot } from "./types.js";
 
 export interface PetInit { id:string; name:string; species:Species; nowMs:number; personality?:Partial<Personality>; x?:number; y?:number; }
@@ -12,6 +13,7 @@ export class Pet {
   readonly memory: PetMemory;
   state: PetState;
   private readonly brain: PetBrain;
+  private readonly routines = new RoutineManager();
   private readonly rng: RandomSource;
   private lastRememberedBehavior: string;
 
@@ -43,7 +45,14 @@ export class Pet {
     this.updateDrives(world,dt);
     this.updateAffect(world,dt);
     this.memory.decay(dt);
-    const decision = this.brain.decide(this.state,world,this.memory);
+    const routineStep=this.routines.tick(this.state,world,world.nowMs);
+    let decision;
+    if(routineStep){
+      decision={behavior:routineStep.behavior as any,score:1,reason:routineStep.note,...(routineStep.targetId?{targetId:routineStep.targetId}:{}),...(world.currentSurface?{targetPosition:{x:world.currentSurface.rect.x+world.currentSurface.rect.width/2,y:world.currentSurface.walkY}}:{}),allScores:[]};
+      this.state.behaviorTargetId=routineStep.targetId;
+    } else {
+      decision=this.brain.decide(this.state,world,this.memory);
+    }
     if (decision.behavior !== this.state.behavior) {
       this.state.behavior = decision.behavior;
       this.state.behaviorSinceMs = world.nowMs;
@@ -141,7 +150,10 @@ export class Pet {
   }
 
   private remember(input:Omit<EpisodicMemory,"id">):void { this.memory.remember({id:`${this.state.id}:${input.atMs}:${this.rng.next().toString(36).slice(2,7)}`,...input}); }
+  get routineState():string|null{return this.routines.active}
   save():PetSave { const mem=this.memory.serialize(); return {version:1,state:structuredClone(this.state),...mem}; }
+  saveRoutines(){return this.routines.serialize()}
+  restoreRoutines(data:{activeRoutineId?:string|null;lastCompleted?:Record<string,number>}){this.routines.restore(data)}
 }
 
 function hashString(text:string):number { let h=2166136261; for(const c of text){h^=c.charCodeAt(0);h=Math.imul(h,16777619);} return h>>>0; }
