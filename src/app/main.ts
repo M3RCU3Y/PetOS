@@ -7,6 +7,7 @@ import { createDesktopBridge } from "./bridge.js";
 import { PixelRenderer } from "./renderer.js";
 import { SettingsUI } from "./ui.js";
 import { SoundEngine } from "./sound.js";
+import { showOnboarding } from "./onboarding.js";
 
 const canvas=document.querySelector<HTMLCanvasElement>("#pet-canvas")!;
 const renderer=new PixelRenderer(canvas);
@@ -21,7 +22,13 @@ let running=true,dragging:string|null=null,dragOffset={x:0,y:0};
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{sim.addPet(Pet.fromSave(rec.save),rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
-if(sim.pets.size===0)sim.addPet(new Pet({id:crypto.randomUUID(),name:"Mochi",species:"cat",nowMs:Date.now(),x:320,y:740}),{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1});
+if(sim.pets.size===0){
+  void showOnboarding(document.body).then(result=>{
+    const spawn={x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height-60};
+    sim.addPet(new Pet({id:crypto.randomUUID(),name:result.name,species:result.species,nowMs:Date.now(),x:spawn.x,y:spawn.y}),{coat:result.coat,accent:result.accent,eye:result.eye,scale:1});
+    persist();
+  });
+}
 
 const ui=new SettingsUI({
   onToggleInteraction(enabled){settings.interactionMode=enabled;void bridge.setInteractionMode(enabled);document.body.classList.toggle("interaction",enabled);persist();},
