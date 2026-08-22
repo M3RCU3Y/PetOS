@@ -28,6 +28,8 @@ export interface UIActions {
   onFocusConfig(enabled:boolean,workMinutes:number,breakMinutes:number):void;
   onUpdateManifestUrl(url:string):void;
   onCheckUpdates():Promise<{status:"available"|"latest"|"error";message:string}>;
+  /** Called after the settings panel closes so native overlays can restore click-through. */
+  onClose?():void;
   onImportPack(pack:PetPack):void;
   onExportState():void;
   onImportState(json:string):boolean;
@@ -91,7 +93,7 @@ export class SettingsUI {
     renderPetPreview(canvas,this.creatorState.species,{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1},"idle",performance.now());
   }
   open():void{this.panel.classList.add("open");this.backdrop.classList.add("open");}
-  close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");}
+  close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");this.actions.onClose?.();}
   setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${p.species} · ${p.behavior}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));
     this.updateSocialGraph(pets);
   }

@@ -102,10 +102,17 @@ async function sqlBridgeLog(level:string,message:string):Promise<void>{
   try{await bridge.logEvent(level,message);}catch{}
 }
 if(sim.pets.size===0){
+  // First run: the onboarding card needs real mouse/keyboard input, so lift the
+  // click-through shield until the new pet has moved in.
+  document.body.classList.add("interaction");
+  void bridge.setInteractionMode(true);
   void showOnboarding(document.body).then(result=>{
     const spawn={x:virtualBounds.x+virtualBounds.width/2,y:virtualBounds.y+virtualBounds.height-60};
     sim.addPet(new Pet({id:crypto.randomUUID(),name:result.name,species:result.species,nowMs:Date.now(),x:spawn.x,y:spawn.y,personality:result.personality}),{coat:result.coat,accent:result.accent,eye:result.eye,scale:1});
     persist();
+    document.body.classList.toggle("interaction",settings.interactionMode);
+    void bridge.setInteractionMode(settings.interactionMode);
+    void sqlBridgeLog("info",`Onboarding complete — ${result.name} the ${result.species} moved in`);
   });
 }
 
@@ -139,6 +146,7 @@ const ui=new SettingsUI({
       return{status:"error" as const,message:`Check failed: ${String(err).slice(0,120)}`};
     }
   },
+  onClose(){void bridge.setInteractionMode(settings.interactionMode);document.body.classList.toggle("interaction",settings.interactionMode);},
   onImportPack(){/* imported packs live in this UI session; pets persist with resolved appearance/personality */},
   onExportState(){const json=persistence.export();const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`petos-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
   onImportState(json){return persistence.import(json);},

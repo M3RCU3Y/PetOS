@@ -53,3 +53,6 @@
 .photo-gallery img{width:110px;height:auto;border-radius:8px;border:1px solid rgba(255,255,255,.1);cursor:pointer;}
 .photo-cell{position:relative;display:inline-block;}
 .photo-cell button{position:absolute;top:-6px;right:-6px;width:18px;height:18px;line-height:16px;border-radius:50%;border:none;background:rgba(20,22,30,.9);color:#fff;cursor:pointer;font-size:.7rem;}
+
+/* The corner button is dead weight while the overlay is click-through; tray opens settings instead. */
+body:not(.interaction) #settings-open{display:none}
