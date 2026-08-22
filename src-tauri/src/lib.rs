@@ -33,7 +33,15 @@ struct Point { x: f64, y: f64 }
 #[derive(Clone, Serialize, Debug)]
 struct Rect { x: f64, y: f64, width: f64, height: f64 }
 #[derive(Clone, Serialize, Debug)]
-struct MonitorInfo { id: String, rect: Rect, work_area: Rect, primary: bool, scale_factor: f64 }
+struct MonitorInfo {
+    id: String,
+    rect: Rect,
+    #[serde(rename = "workArea")]
+    work_area: Rect,
+    primary: bool,
+    #[serde(rename = "scaleFactor")]
+    scale_factor: f64,
+}
 #[derive(Clone, Serialize, Debug)]
 struct DesktopWindow { id: String, title: String, app: String, rect: Rect, visible: bool, foreground: bool, minimized: bool }
 #[derive(Clone, Serialize, Debug)]

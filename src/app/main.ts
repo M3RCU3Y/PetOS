@@ -77,6 +77,14 @@ let draggingObject:WorldObject|null=null;
 
 const loaded=persistence.load();
 if(loaded){settings={...DEFAULT_SETTINGS,...loaded.settings};for(const rec of loaded.pets){try{const pet=Pet.fromSave(rec.save);pet.restoreExtras(rec);sim.addPet(pet,rec.appearance);}catch{}}for(const obj of loaded.objects)sim.addObject(obj);}
+// Runtime services are constructed before storage is read, so explicitly apply
+// restored settings instead of leaving them at their defaults until the user
+// changes a control.
+running=settings.enabled;
+sound.setEnabled(settings.sound);
+sound.setVolume(settings.soundVolume);
+sound.setQuietHours(settings.quietHours);
+cortex=createCortex(settings.cortexProvider,{apiKey:settings.cortexApiKey,model:settings.cortexModel});
 let sqlDb:SqlDatabase|null=null;
 let eventWatermarks:Record<string,number>={};
 if(bridge.native){
@@ -199,9 +207,14 @@ const CORTEX_PHRASES:Record<string,string[]>={
   play:["Play with me!","I've got so much energy!"]
 };
 async function reflectCortex():Promise<void>{
+  const privateContext=applyPrivacy(settings.privacyLevel,{
+    userActivity:lastNative?.user_activity??"active",
+    foregroundApp:lastNative?.foreground_app??null,
+    windows:lastNative?.windows??[]
+  });
   for(const pet of sim.pets.values()){
     try{
-      const world={nowMs:Date.now(),dtMs:16,userActivity:lastNative?.user_activity??"active",cursor:{position:lastNative?.cursor??{x:0,y:0},speed:0,distanceToPet:200,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:lastNative?.windows??[],monitors:lastNative?.monitors??[],foregroundApp:lastNative?.foreground_app??null,secondsSinceNewWindow:999,currentSurface:null,interactionMode:false,idleSeconds:lastNative?.idle_seconds??0,locked:lastNative?.locked??false,batteryLevel,charging:batteryCharging,focusBreak:focusPhase==="break"};
+      const world={nowMs:Date.now(),dtMs:16,userActivity:privateContext.userActivity,cursor:{position:lastNative?.cursor??{x:0,y:0},speed:0,distanceToPet:200,buttons:0},surfaces:[],objects:sim.objects,nearbyPets:[],windows:privateContext.windows,monitors:lastNative?.monitors??[],foregroundApp:privateContext.foregroundApp,secondsSinceNewWindow:999,currentSurface:null,interactionMode:false,idleSeconds:lastNative?.idle_seconds??0,locked:lastNative?.locked??false,batteryLevel,charging:batteryCharging,focusBreak:focusPhase==="break"};
       const intention=await cortex.reflect(pet.state,world);
       if(intention.kind==="none"||intention.confidence<.55)continue;
       const phrases=[intention.note,...CORTEX_PHRASES[intention.kind]??[]];

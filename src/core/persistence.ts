@@ -94,7 +94,10 @@ export class BrowserPersistence {
 
   export(): string {
     const state = this.load();
-    return JSON.stringify(state, null, 2);
+    if (!state) return "null";
+    // Backups are commonly shared for troubleshooting. Provider credentials are
+    // machine-local secrets and must never hitch a ride in an exported file.
+    return JSON.stringify({ ...state, settings: { ...state.settings, cortexApiKey: "" } }, null, 2);
   }
 
   import(json: string): boolean {

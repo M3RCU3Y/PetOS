@@ -41,7 +41,10 @@ export class InteractionManager {
       if (obj && this.onRemoveObject) {
         this.menu = document.createElement("div");
         this.menu.className = "interaction-menu";
-        this.menu.innerHTML = `<button data-action="remove">Remove ${obj.kind}</button>`;
+        const removeButton = document.createElement("button");
+        removeButton.dataset.action = "remove";
+        removeButton.textContent = `Remove ${obj.kind}`;
+        this.menu.append(removeButton);
         this.menu.style.left = `${e.clientX}px`;
         this.menu.style.top = `${e.clientY}px`;
         document.body.append(this.menu);

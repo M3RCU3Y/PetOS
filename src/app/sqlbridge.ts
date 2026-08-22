@@ -125,6 +125,7 @@ export async function loadStateFromDb(db: SqlDatabase): Promise<PersistedAppStat
 
 export async function saveStateToDb(db: SqlDatabase, state: PersistedAppState): Promise<void> {
   await db.execute(`DELETE FROM objects`);
+  await db.execute(`DELETE FROM pets`);
   for (const obj of state.objects) {
     await db.execute(
       `INSERT OR REPLACE INTO objects (id,kind,x,y,radius,comfort,contents) VALUES (?,?,?,?,?,?,?)`,

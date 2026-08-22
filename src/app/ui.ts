@@ -74,6 +74,7 @@ export class SettingsUI {
   constructor(private readonly actions:UIActions,settings:PetOSSettings,persistence?:BrowserPersistence){
     this.persistence=persistence??null;
     this.panel=document.querySelector("#settings-panel")!;this.backdrop=document.querySelector("#settings-backdrop")!;this.petList=document.querySelector("#pet-list")!;this.packSelect=document.querySelector("#pack-select")!;this.lifeLog=document.querySelector("#life-log")!;
+    this.panel.inert=true;
     this.renderPacks();
     this.bind(settings);
     this.bindCreator();
@@ -92,9 +93,9 @@ export class SettingsUI {
     },140);
     renderPetPreview(canvas,this.creatorState.species,{coat:this.creatorState.coat,accent:this.creatorState.accent,eye:this.creatorState.eye,scale:1},"idle",performance.now());
   }
-  open():void{this.panel.classList.add("open");this.backdrop.classList.add("open");}
-  close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");this.actions.onClose?.();}
-  setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${p.species} · ${p.behavior}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));
+  open():void{this.panel.inert=false;this.panel.classList.add("open");this.backdrop.classList.add("open");requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>("#settings-close")?.focus());}
+  close():void{this.panel.classList.remove("open");this.backdrop.classList.remove("open");this.panel.inert=true;document.querySelector<HTMLButtonElement>("#settings-open")?.focus();this.actions.onClose?.();}
+  setPets(pets:{id:string;name:string;species:Species;behavior:string}[]):void{this.petList.innerHTML="";for(const p of pets){const row=document.createElement("div");row.className="pet-row";row.innerHTML=`<span><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.species)} · ${escapeHtml(p.behavior)}</small></span><button data-remove="${escapeHtml(p.id)}" title="Remove pet">×</button>`;this.petList.append(row);}this.petList.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach(b=>b.addEventListener("click",()=>this.actions.onRemovePet(b.dataset.remove!)));
     this.updateSocialGraph(pets);
   }
   setRelationships(relationships:Record<string,Record<string,number>>):void{this.relationshipsData=relationships;}
@@ -109,7 +110,7 @@ export class SettingsUI {
     const el=document.querySelector("#diary-list");
     if(!el)return;
     if(!entries.length){el.innerHTML="<p>Notable moments will appear here.</p>";return;}
-    el.innerHTML=entries.slice(-10).reverse().map(e=>`<div class="log-row"><span>${e.title}</span><small>${e.detail}</small></div>`).join("");
+    el.innerHTML=entries.slice(-10).reverse().map(e=>`<div class="log-row"><span>${escapeHtml(e.title)}</span><small>${escapeHtml(e.detail)}</small></div>`).join("");
   }
   setLifeLog(entries:{pet:string;atMs:number;note:string;kind:string}[]):void{
     if(!entries.length){this.lifeLog.innerHTML="<p>Your pets’ memorable moments will appear here.</p>";return;}

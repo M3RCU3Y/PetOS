@@ -49,8 +49,12 @@ export function renderSocialGraph(
     const emoji = p.species === "cat" ? "🐈" : p.species === "dog" ? "🐕" : p.species === "rabbit" ? "🐇" : "🐦";
     svg += `<circle cx="${pos.x}" cy="${pos.y}" r="18" fill="rgba(15,17,24,.9)" stroke="rgba(255,255,255,.12)"/>`;
     svg += `<text x="${pos.x}" y="${pos.y + 6}" text-anchor="middle" font-size="16">${emoji}</text>`;
-    svg += `<text x="${pos.x}" y="${pos.y + 32}" text-anchor="middle" font-size="10" fill="#aab2ca">${p.name}</text>`;
+    svg += `<text x="${pos.x}" y="${pos.y + 32}" text-anchor="middle" font-size="10" fill="#aab2ca">${escapeXml(p.name)}</text>`;
   }
   svg += "</svg>";
   container.innerHTML = svg;
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]!);
 }
