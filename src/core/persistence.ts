@@ -103,8 +103,14 @@ export class BrowserPersistence {
   import(json: string): boolean {
     try {
       const parsed = JSON.parse(json);
-      if (!parsed || typeof parsed !== "object") return false;
-      localStorage.setItem(this.key, JSON.stringify(parsed));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+      const candidate = parsed as LegacyState;
+      // Never clobber a working local world with a backup we cannot understand.
+      if ((candidate.version ?? 0) > CURRENT_VERSION) return false;
+      if (candidate.pets !== undefined && !Array.isArray(candidate.pets)) return false;
+      if (candidate.objects !== undefined && !Array.isArray(candidate.objects)) return false;
+      if (candidate.settings !== undefined && (typeof candidate.settings !== "object" || candidate.settings === null)) return false;
+      localStorage.setItem(this.key, JSON.stringify(candidate));
       return true;
     } catch {
       return false;

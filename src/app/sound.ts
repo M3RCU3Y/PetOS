@@ -66,6 +66,9 @@ export class SoundEngine {
       this.masterGain.gain.value = this.volume * .5;
       this.masterGain.connect(this.ctx.destination);
     }
+    // Autoplay policy: the context starts suspended until the page has had a
+    // user gesture. Resume on demand so early sounds are not lost forever.
+    if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => {});
 
     const profile = PROFILES[event];
     if (!profile) return;

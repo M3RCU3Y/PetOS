@@ -47,7 +47,6 @@ furniture.setPlaceHandler((template,x,y)=>{
   sim.addObject({id:crypto.randomUUID(),kind:objectKind as any,position:{x:x+virtualBounds.x,y:y+virtualBounds.y},radius:template.radius,...(template.comfort?{comfort:template.comfort}:{}),...(template.contents?{contents:template.contents}:{})});
   persist();
 });
-document.querySelectorAll<HTMLButtonElement>("[data-object]").forEach(b=>{b.remove();});
 const palette=document.querySelector("#furniture-palette")!;
 palette.innerHTML=FURNITURE_TEMPLATES.map((t)=>`<button data-furniture="${t.kind}"><span class="furniture-emoji">${t.emoji}</span><span>${t.label}</span><span class="furniture-desc">${t.description}</span></button>`).join("");
 palette.querySelectorAll<HTMLButtonElement>("[data-furniture]").forEach(btn=>{
@@ -70,7 +69,7 @@ interactions.setObjectFinder((x,y)=>{
   return null;
 });
 interactions.setRemoveObjectHandler(id=>{sim.removeObject(id);persist();});
-let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0,lastRenderAt=0;
+let running=true,dragging:string|null=null,dragOffset={x:0,y:0},lastSocialGraphUpdate=0,lastCortexReflect=0,lastRenderAt=0,lastPanelRefresh=0;
 let cortex=createCortex(settings.cortexProvider,{apiKey:settings.cortexApiKey,model:settings.cortexModel});
 let focusPhase:"idle"|"work"|"break"="idle",focusPhaseEndsAt=0,focusLastKey="";
 let draggingObject:WorldObject|null=null;
@@ -246,6 +245,9 @@ async function frame(now:number):Promise<void>{
   lastRenderAt=now;
   if(running&&settings.enabled&&!document.hidden){
       if(!sim.shouldTick(dt)){requestAnimationFrame(frame);return;}
+      // shouldTick consumed the accumulator — reset the clock only on real ticks so
+      // skipped (capped) frames don't shrink simulated time.
+      lastFrame=now;
       await refreshNative(now);if(lastNative){
         const activity:DesktopFrame["userActivity"]=lastNative.locked?"idle":mediaPlaying()&&lastNative.user_activity==="active"?"media":lastNative.user_activity;
         const laser=interactions.getLaser();
@@ -262,8 +264,10 @@ async function frame(now:number):Promise<void>{
       if(now-lastCortexReflect>30_000&&!lastNative?.locked){lastCortexReflect=now;void reflectCortex();}
       updateFocusTimer(now);
       const todayWeather=weatherFor(new Date());
-      renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor,weather:focusPhase==="break"?"clear":todayWeather,reducedMotion:settings.reducedMotion});ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));
-      ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}
+      renderer.render({pets:state.pets,appearances:sim.appearances,objects:state.objects,debug:settings.debug,decisions:state.decisions,virtualBounds,cursor:lastNative?.cursor,weather:focusPhase==="break"?"clear":todayWeather,reducedMotion:settings.reducedMotion});
+      // Panel widgets rebuild their DOM/SVG; once a second is plenty and keeps the
+      // per-frame cost flat when the panel is closed.
+      if(now-lastPanelRefresh>1000){lastPanelRefresh=now;ui.setPets(state.pets.map(p=>({id:p.id,name:p.name,species:p.species,behavior:p.behavior})));ui.setDiary([...sim.pets.values()].flatMap(p=>p.diary.recent.map(e=>({...e}))));ui.setLifeLog([...sim.pets.values()].flatMap(p=>p.memory.recent(undefined,5).map(m=>({pet:p.state.name,atMs:m.atMs,note:m.note,kind:m.kind}))).sort((a,b)=>a.atMs-b.atMs));}}}
   if(now-lastSave>10_000)persist();requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
 

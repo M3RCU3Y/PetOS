@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../dist", import.meta.url));
-const types = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json" };
+const types = { ".html":"text/html", ".js":"text/javascript", ".css":"text/css", ".json":"application/json", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".svg":"image/svg+xml", ".ico":"image/x-icon" };
 const server = http.createServer(async (req, res) => {
   try {
     const raw = req.url === "/" ? "/index.html" : req.url ?? "/index.html";

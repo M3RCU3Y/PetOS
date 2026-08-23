@@ -77,7 +77,8 @@ export class SettingsUI {
     this.panel.inert=true;
     this.renderPacks();
     this.bind(settings);
-    this.bindCreator();
+    this.bindCreatorStatic();
+    this.bindCreatorSliders();
     this.startPreview();
   }
 
@@ -199,24 +200,22 @@ export class SettingsUI {
     renderSocialGraph(container as HTMLElement,pets,edges);
   }
 
-  private bindCreator():void{
-    const container=document.querySelector("#creator-sliders")!;
-    container.innerHTML=PERSONALITY_TRAILS.map(t=>{
-      const val=this.creatorState.personality[t.key]??SPECIES_DEFAULTS[this.creatorState.species]?.[t.key]??.5;
-      return `<div class="creator-slider"><label><span>${t.label}</span><span>${t.left} — ${t.right}</span></label><input type="range" min="0" max="1" step="0.01" value="${val}" data-trait="${t.key}"></div>`;
-    }).join("");
-    container.querySelectorAll<HTMLInputElement>("[data-trait]").forEach(input=>{
-      input.addEventListener("input",()=>{this.creatorState.personality[input.dataset.trait!]=Number(input.value);});
-    });
-    document.querySelectorAll<HTMLButtonElement>("[data-species]").forEach(b=>{
-      b.addEventListener("click",()=>{
-        this.creatorState.species=b.dataset.species as Species;
-        document.querySelectorAll<HTMLButtonElement>("[data-species]").forEach(x=>x.classList.remove("primary"));
-        b.classList.add("primary");
-        this.creatorState.personality={};
-        this.bindCreator();
+  /** One-time wiring for creator controls whose DOM is never rebuilt. Scoped to the
+   * settings panel so the onboarding overlay's own data-species buttons (first run,
+   * where both exist at once) never cross-wire into the creator state. */
+  private bindCreatorStatic():void{
+    const panel=document.querySelector("#settings-panel");
+    if(panel){
+      panel.querySelectorAll<HTMLButtonElement>("button[data-species]").forEach(b=>{
+        b.addEventListener("click",()=>{
+          this.creatorState.species=b.dataset.species as Species;
+          panel.querySelectorAll<HTMLButtonElement>("button[data-species]").forEach(x=>x.classList.remove("primary"));
+          b.classList.add("primary");
+          this.creatorState.personality={};
+          this.bindCreatorSliders();
+        });
       });
-    });
+    }
     const coat=document.querySelector<HTMLInputElement>("#creator-coat")!,accent=document.querySelector<HTMLInputElement>("#creator-accent")!,eye=document.querySelector<HTMLInputElement>("#creator-eye")!;
     coat.value=this.creatorState.coat;accent.value=this.creatorState.accent;eye.value=this.creatorState.eye;
     coat.addEventListener("input",()=>this.creatorState.coat=coat.value);
@@ -249,6 +248,20 @@ export class SettingsUI {
         personality:this.creatorState.personality
       });
       nameInput.value="";
+    });
+  }
+
+  /** Rebuilds the personality sliders for the selected species. Owns #creator-sliders
+   * entirely, so rebinding after a species change cannot stack duplicate listeners. */
+  private bindCreatorSliders():void{
+    const container=document.querySelector("#creator-sliders");
+    if(!container)return;
+    container.innerHTML=PERSONALITY_TRAILS.map(t=>{
+      const val=this.creatorState.personality[t.key]??SPECIES_DEFAULTS[this.creatorState.species]?.[t.key]??.5;
+      return `<div class="creator-slider"><label><span>${t.label}</span><span>${t.left} — ${t.right}</span></label><input type="range" min="0" max="1" step="0.01" value="${val}" data-trait="${t.key}"></div>`;
+    }).join("");
+    container.querySelectorAll<HTMLInputElement>("[data-trait]").forEach(input=>{
+      input.addEventListener("input",()=>{this.creatorState.personality[input.dataset.trait!]=Number(input.value);});
     });
   }
 

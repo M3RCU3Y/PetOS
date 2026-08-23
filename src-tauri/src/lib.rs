@@ -133,8 +133,13 @@ pub fn run() {
         append_log_line(&format!("PANIC: {info}"));
     }));
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
-            // A second launch should just focus the existing overlay.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // A second launch should just surface the existing overlay.
+            if let Some(w)=app.get_webview_window("main"){
+                let _=w.show();
+                let _=w.unminimize();
+                let _=w.set_focus();
+            }
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_sql::Builder::default().build())
