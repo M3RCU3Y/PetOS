@@ -23,10 +23,18 @@ function drawWithKinetics(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,
   const landing=landingAge>=0&&landingAge<LANDING_MS?1-smoothstep(landingAge/LANDING_MS):0;
   const speed=clamp(Math.abs(p.body.velocity.x)/420);
   const activeGrounded=p.body.grounded&&!pose.lying&&!pose.loaf&&!pose.sitting&&!pose.hanging&&!pose.peeking;
-  const lean=activeGrounded?speed*.035:0;
+  const locomoting=activeGrounded&&pose.legAmp>.2&&speed>.035;
+  const gaitEnergy=locomoting?clamp(pose.legAmp/4.2):0;
+  const stride=Math.sin(pose.gait),doubleStride=Math.sin(pose.gait*2);
+  const lean=activeGrounded?speed*.032:0;
+  const weightRoll=locomoting?stride*.011*gaitEnergy:0;
+  const shoulderSurge=locomoting?doubleStride*.42*gaitEnergy:0;
+  const contactSettle=locomoting?(1-Math.abs(stride))*.34*gaitEnergy:0;
+
   c.save();c.globalAlpha*=alpha;
   if(landing>0){c.translate(0,landing*1.8);c.scale(1+landing*.105,1-landing*.12);}
-  if(lean>0)c.rotate(lean);
+  if(locomoting)c.translate(shoulderSurge,contactSettle);
+  if(lean!==0||weightRoll!==0)c.rotate(lean+weightRoll);
   drawPose(c,p,a,pose,t);c.restore();
 }
 
