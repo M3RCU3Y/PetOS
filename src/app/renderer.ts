@@ -54,15 +54,52 @@ function drawCatEffects(c:CanvasRenderingContext2D,p:PetState,pos:Vec2,t:number,
 
 export class PixelRenderer extends LegacyPixelRenderer{
   private illustratedAppearances=new Map<string,PetAppearance>();
-  override render(scene:RenderScene):void{
-    this.illustratedAppearances=new Map(scene.appearances);const illustrated:PetState[]=[],legacy:PetState[]=[];
-    for(const pet of scene.pets){const appearance=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};if(catUsesIllustratedPath(pet,appearance))illustrated.push(pet);else legacy.push(pet);}
-    super.render({...scene,pets:legacy});if(!illustrated.length)return;const c=this.canvas.getContext("2d");if(!c)return;const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y,t=performance.now();illustrated.sort((a,b)=>a.body.position.y-b.body.position.y);
-    for(const pet of illustrated){const a=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1},pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy},cursor=scene.cursor?{x:scene.cursor.x+ox,y:scene.cursor.y+oy}:undefined;drawCatShadow(c,pet,a,pos);paintIllustratedCat(c,pet,a,pos,t,cursor,scene.reducedMotion===true);drawCatEffects(c,pet,pos,t,scene);}
+  private legacyCanvas:HTMLCanvasElement|null=null;
+  private legacyLayer:LegacyPixelRenderer|null=null;
+
+  private getLegacyLayer():LegacyPixelRenderer|null{
+    if(typeof document==="undefined")return null;
+    if(!this.legacyCanvas){
+      this.legacyCanvas=document.createElement("canvas");
+      this.legacyLayer=new LegacyPixelRenderer(this.legacyCanvas);
+    }
+    return this.legacyLayer;
   }
+
+  override render(scene:RenderScene):void{
+    this.illustratedAppearances=new Map(scene.appearances);
+    // The mature renderer still owns the world pass: weather and habitat objects.
+    super.render({...scene,pets:[]});
+
+    const c=this.canvas.getContext("2d");if(!c)return;
+    const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y,t=performance.now();
+    const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);
+    const legacyLayer=this.getLegacyLayer();
+    const {weather:_weather,objects:_objects,pets:_pets,...petSceneBase}=scene;
+
+    for(const pet of ordered){
+      const a=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
+      if(catUsesIllustratedPath(pet,a)){
+        const pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy},cursor=scene.cursor?{x:scene.cursor.x+ox,y:scene.cursor.y+oy}:undefined;
+        drawCatShadow(c,pet,a,pos);paintIllustratedCat(c,pet,a,pos,t,cursor,scene.reducedMotion===true);drawCatEffects(c,pet,pos,t,scene);
+        continue;
+      }
+      if(!legacyLayer||!this.legacyCanvas)continue;
+      const onePetScene:RenderScene={...petSceneBase,pets:[pet],objects:[]};
+      legacyLayer.render(onePetScene);
+      c.save();c.imageSmoothingEnabled=false;c.drawImage(this.legacyCanvas,0,0,this.legacyCanvas.width,this.legacyCanvas.height,0,0,innerWidth,innerHeight);c.restore();
+    }
+  }
+
   override hitTest(pet:PetState,point:Vec2,bounds:Rect):boolean{
-    const a=this.illustratedAppearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};if(!catUsesIllustratedPath(pet,a))return super.hitTest(pet,point,bounds);const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y,s=a.scale;
-    if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;if(pet.behavior==="pounce"&&!pet.body.grounded)return point.x>=x-52*s&&point.x<=x+55*s&&point.y>=y-48*s&&point.y<=y+15*s;return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
+    const a=this.illustratedAppearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
+    if(!catUsesIllustratedPath(pet,a))return this.legacyLayer?.hitTest(pet,point,bounds)??super.hitTest(pet,point,bounds);
+    const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y,s=a.scale;
+    if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;
+    if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;
+    if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;
+    if(pet.behavior==="pounce"&&!pet.body.grounded)return point.x>=x-52*s&&point.x<=x+55*s&&point.y>=y-48*s&&point.y<=y+15*s;
+    return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
   }
 }
 
