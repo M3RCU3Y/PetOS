@@ -228,21 +228,24 @@ function drawGroomPaw(c:CanvasRenderingContext2D,a:PetAppearance,t:number,m:CatM
 function drawStanding(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const crouch=pose.crouch,bodyY=-27+crouch*7-pose.bounce,bodyH=18-crouch*3+Math.sin(t/900)*.18;
   drawTail(c,a,pose,t,-19*m.bodyLength,bodyY+11,m);
-  const xs=[-15,-7,9,17];
-  const phases=[pose.gait,pose.gait+Math.PI,pose.gait+Math.PI,pose.gait];
-  // Cats walk in opposing diagonal pairs. Each paw travels forward/back through the stride,
-  // rather than only lifting vertically while the torso slides across the desktop.
+  const xs=[-15,-7,9,17],running=pose.legAmp>3.45;
+  const phases=running
+    ?[pose.gait,pose.gait+.58,pose.gait+Math.PI,pose.gait+Math.PI+.58]
+    :[pose.gait,pose.gait+Math.PI,pose.gait+Math.PI,pose.gait];
+  // Walk uses opposing diagonal pairs. Faster movement shifts toward a feline bound:
+  // hind legs gather/push before the forelegs reach and catch.
   for(let i=0;i<4;i++){
     const cycle=phases[i]!,swing=Math.sin(cycle),travel=Math.cos(cycle);
-    const lift=Math.max(0,swing)*pose.legAmp*1.02;
-    const stride=travel*pose.legAmp*1.68;
+    const lift=Math.max(0,swing)*pose.legAmp*(running?1.14:1.02);
+    const stride=travel*pose.legAmp*(running?1.98:1.68);
     drawLeg(c,a,xs[i]!,bodyY+10,0,lift,stride,i>=2,m);
   }
-  c.save();c.translate(0,bodyY+bodyH*.5);c.scale(m.bodyLength,m.bodyRound);c.translate(0,-(bodyY+bodyH*.5));
+  const runWave=running?Math.sin(pose.gait*2):0,runStretch=runWave*.045;
+  c.save();c.translate(0,bodyY+bodyH*.5);c.scale(m.bodyLength*(1+runStretch),m.bodyRound*(1-runStretch*.34));c.translate(0,-(bodyY+bodyH*.5));
   const pal=coatPalette(a);ellipse(c,0,bodyY+8,24.2,12.2,pal.low);
   c.fillStyle=softBodyFill(c,a,-22,bodyY-5,22,bodyY+18);c.beginPath();c.ellipse(1,bodyY+6.4,22.9,11.35,-.01,0,TAU);c.fill();
   ellipse(c,8,bodyY+.9,12.0,4.3,rgba(pal.hi,.24),-.05);ellipse(c,-2,bodyY+13.3,17.3,3.1,rgba(pal.deep,.16));bodyMarkings(c,a,bodyY);backTufts(c,a,bodyY,m);c.restore();
-  const hx=22+(m.bodyLength-1)*14+pose.crouch*5+pose.headDip*7,hy=bodyY+2.0+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28;
+  const hx=22+(m.bodyLength-1)*14+pose.crouch*5+pose.headDip*7+(running?runStretch*15:0),hy=bodyY+2.0+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28+(running?Math.cos(pose.gait*2)*.28:0);
   c.save();if(pose.bow>0){c.translate(hx,hy);c.rotate(.24*pose.bow);c.translate(-hx,-hy);}drawHead(c,a,pose,hx,hy,t,m);c.restore();
   if(pose.pawReach>0)drawLeg(c,a,20,bodyY+9,-pose.pawReach*7,0,0,true,m);
   if(pose.carry){ellipse(c,hx+12,hy+8,4,4,"#d95c5c");ellipse(c,hx+10.7,hy+6.8,1.3,1.3,"rgba(255,255,255,.38)");}
