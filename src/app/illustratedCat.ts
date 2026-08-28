@@ -161,11 +161,11 @@ function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   ellipse(c,cx,cy,13.1,11.3,pal.low,-.035);
   c.fillStyle=softBodyFill(c,a,cx-10,cy-10,cx+11,cy+10);c.beginPath();c.ellipse(cx+.25,cy-.45,12.15,10.45,-.035,0,TAU);c.fill();
   ellipse(c,cx-3.8,cy-5.2,6.2,2.4,rgba(pal.hi,.3),-.12);
-  if(a.markings==="tabby"){
+  if(markingFor(a)==="tabby"){
     line(c,rgba(pal.deep,.58),1.25,()=>{for(const dx of [-3.5,0,3.5]){c.moveTo(cx+dx,cy-8.15);c.quadraticCurveTo(cx+dx*.72,cy-6,cx+dx*.5,cy-4.55);}c.moveTo(cx-10,cy-.5);c.quadraticCurveTo(cx-7.2,cy+.1,cx-6,cy+1.9);});
-  }else if(a.markings==="tuxedo"){
+  }else if(markingFor(a)==="tuxedo"){
     ellipse(c,cx+1.45,cy+4.1,6.3,5.0,rgba(a.accent,.88));
-  }else if(a.markings==="patched"){
+  }else if(markingFor(a)==="patched"){
     ellipse(c,cx-5.2,cy-1.25,4.5,5.1,rgba(a.accent,.62),-.26);
   }
   drawFace(c,a,p,cx,cy,m,t);
@@ -194,12 +194,14 @@ function drawLeg(c:CanvasRenderingContext2D,a:PetAppearance,x:number,hipY:number
   drawPaw(c,a,x+.35,endY-.2);
 }
 
+function markingFor(a:PetAppearance):"uniform"|"tuxedo"|"tabby"|"patched"{return a.markings??"tabby";}
+
 function bodyMarkings(c:CanvasRenderingContext2D,a:PetAppearance,bodyY:number):void{
-  const pal=coatPalette(a);
-  if(a.markings==="tabby"){
+  const pal=coatPalette(a),marking=markingFor(a);
+  if(marking==="tabby"){
     line(c,rgba(pal.deep,.55),1.5,()=>{for(let i=0;i<4;i++){const x=-12+i*7;c.moveTo(x,bodyY-1);c.quadraticCurveTo(x+1,bodyY+3,x+3,bodyY+6.8);}c.moveTo(15,bodyY+3);c.quadraticCurveTo(18,bodyY+8,17,bodyY+11);});
-  }else if(a.markings==="tuxedo")ellipse(c,13,bodyY+10.7,8.7,4.8,rgba(a.accent,.86),-.08);
-  else if(a.markings==="patched"){ellipse(c,-9,bodyY+4,7,5.9,rgba(a.accent,.58),-.28);ellipse(c,9,bodyY+10.5,5.8,4.1,rgba(a.accent,.46),.2);}
+  }else if(marking==="tuxedo")ellipse(c,13,bodyY+10.7,8.7,4.8,rgba(a.accent,.86),-.08);
+  else if(marking==="patched"){ellipse(c,-9,bodyY+4,7,5.9,rgba(a.accent,.58),-.28);ellipse(c,9,bodyY+10.5,5.8,4.1,rgba(a.accent,.46),.2);}
 }
 
 function backTufts(c:CanvasRenderingContext2D,a:PetAppearance,bodyY:number,m:CatMorph):void{
@@ -230,21 +232,37 @@ function drawSitting(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:
   const pal=coatPalette(a);drawTail(c,a,pose,t,-10,-13,m);ellipse(c,-3,-20,15.4*m.bodyRound,22*m.bodyRound,pal.low,-.15);
   c.fillStyle=softBodyFill(c,a,-13,-42,14,0);c.beginPath();c.ellipse(-1.7,-21,14.2*m.bodyRound,20.8*m.bodyRound,-.13,0,TAU);c.fill();
   ellipse(c,-7,-8,10,6.5,rgba(pal.low,.84));ellipse(c,6,-8,7.6,7.7,rgba(a.accent,.45));drawPaw(c,a,2.5,-.8);drawPaw(c,a,10.2,-.8);
-  if(a.markings==="tabby")line(c,rgba(pal.deep,.5),1.45,()=>{for(let i=0;i<3;i++){c.moveTo(-10+i*6,-34);c.quadraticCurveTo(-7+i*6,-28,-6+i*6,-23);}});
+  if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.5),1.45,()=>{for(let i=0;i<3;i++){c.moveTo(-10+i*6,-34);c.quadraticCurveTo(-7+i*6,-28,-6+i*6,-23);}});
   drawHead(c,a,pose,7,-42+pose.headBob,t,m);if(pose.grooming)drawGroomPaw(c,a,t,m);
 }
 
 function drawSleeping(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
-  const pal=coatPalette(a),breathe=Math.sin(t/620)*.55;drawTail(c,a,pose,t,-7,-7,m);ellipse(c,-2,-10,25*m.bodyLength,(12+breathe)*m.bodyRound,pal.low,-.05);
+  const pal=coatPalette(a),breathe=Math.sin(t/620)*.55,curl=hash01(`${p.id}:sleep-pose`)>.42;
+  const sleepy={...pose,eyeOpen:0,pupilX:0,pupilY:0};
+  if(curl){
+    c.save();c.translate(-1,-1);
+    line(c,pal.low,6*m.tail,()=>{c.moveTo(-15,-5);c.bezierCurveTo(-26,-5,-29,-15,-22,-24);c.bezierCurveTo(-14,-34,5,-34,18,-24);c.bezierCurveTo(27,-16,24,-6,15,-3);});
+    ellipse(c,-3,-17,21*m.bodyRound,(16+breathe*.55)*m.bodyRound,pal.low,-.1);
+    c.fillStyle=softBodyFill(c,a,-22,-34,20,-2);c.beginPath();c.ellipse(-2,-18,19.7*m.bodyRound,(14.8+breathe*.55)*m.bodyRound,-.1,0,TAU);c.fill();
+    ellipse(c,-8,-27,11,4.3,rgba(pal.hi,.2),-.15);
+    if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.48),1.45,()=>{for(let i=0;i<4;i++){const x=-15+i*7;c.moveTo(x,-31);c.quadraticCurveTo(x+2,-26,x+3,-22);}});
+    else if(markingFor(a)==="tuxedo")ellipse(c,6,-8,9,5.2,rgba(a.accent,.78),-.2);
+    else if(markingFor(a)==="patched")ellipse(c,-9,-20,7,6,rgba(a.accent,.5),-.25);
+    drawHead(c,a,sleepy,12,-23,t,m);
+    ellipse(c,13,-8,5.4,2.2,pal.accentHi,-.08);
+    c.restore();
+    return;
+  }
+  drawTail(c,a,pose,t,-7,-7,m);ellipse(c,-2,-10,25*m.bodyLength,(12+breathe)*m.bodyRound,pal.low,-.05);
   c.fillStyle=softBodyFill(c,a,-22,-23,22,-1);c.beginPath();c.ellipse(-.5,-11,23.5*m.bodyLength,(10.9+breathe)*m.bodyRound,-.05,0,TAU);c.fill();
-  ellipse(c,7,-7,13.5,4.8,rgba(a.accent,.42),-.12);if(a.markings==="tabby")line(c,rgba(pal.deep,.48),1.5,()=>{for(let i=0;i<4;i++){const x=-14+i*7;c.moveTo(x,-19);c.quadraticCurveTo(x+2,-15,x+4,-12);}});
-  const sleepy={...pose,eyeOpen:0,pupilX:0,pupilY:0};drawHead(c,a,sleepy,17,-13,t,m);drawPaw(c,a,18,-2.2);
+  ellipse(c,7,-7,13.5,4.8,rgba(a.accent,.42),-.12);if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.48),1.5,()=>{for(let i=0;i<4;i++){const x=-14+i*7;c.moveTo(x,-19);c.quadraticCurveTo(x+2,-15,x+4,-12);}});
+  drawHead(c,a,sleepy,17,-13,t,m);drawPaw(c,a,18,-2.2);
 }
 
 function drawLoaf(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const pal=coatPalette(a),breathe=Math.sin(t/860)*.4;c.save();c.translate(0,-1);line(c,pal.low,5.8*m.tail,()=>{c.moveTo(-18,-6);c.bezierCurveTo(-27,-3,-28,4,-18,5);c.bezierCurveTo(-8,6,4,4,10,1);});
   ellipse(c,-2,-11,23*m.bodyLength,(12+breathe)*m.bodyRound,pal.low,-.03);c.fillStyle=softBodyFill(c,a,-21,-26,20,1);c.beginPath();c.ellipse(-1,-11.5,21.8*m.bodyLength,(10.9+breathe)*m.bodyRound,-.03,0,TAU);c.fill();
-  ellipse(c,6,-17,12.5,3.8,rgba(pal.hi,.22),-.04);if(a.markings==="tabby")line(c,rgba(pal.deep,.5),1.5,()=>{for(let i=0;i<4;i++){const x=-13+i*7;c.moveTo(x,-20);c.quadraticCurveTo(x+2,-16,x+4,-12);}});else if(a.markings==="tuxedo")ellipse(c,9,-5,9.7,4,rgba(a.accent,.8),-.05);else if(a.markings==="patched")ellipse(c,-8,-13,6.8,4.9,rgba(a.accent,.52),-.2);
+  ellipse(c,6,-17,12.5,3.8,rgba(pal.hi,.22),-.04);if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.5),1.5,()=>{for(let i=0;i<4;i++){const x=-13+i*7;c.moveTo(x,-20);c.quadraticCurveTo(x+2,-16,x+4,-12);}});else if(markingFor(a)==="tuxedo")ellipse(c,9,-5,9.7,4,rgba(a.accent,.8),-.05);else if(markingFor(a)==="patched")ellipse(c,-8,-13,6.8,4.9,rgba(a.accent,.52),-.2);
   drawPaw(c,a,7.5,-2.6);const calm={...pose,headBob:Math.sin(t/1700)*.3};drawHead(c,a,calm,15,-20+calm.headBob,t,m);c.restore();
 }
 
@@ -254,7 +272,7 @@ function drawPeeking(c:CanvasRenderingContext2D,a:PetAppearance,pose:Illustrated
 function drawHanging(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const pal=coatPalette(a),sway=Math.sin(t/520)*1.1;c.save();c.translate(sway,0);line(c,pal.low,5.7*m.tail,()=>{c.moveTo(-3,31);c.bezierCurveTo(-10,38,-8,48,-15,53);});
   ellipse(c,0,20,9.2,20,pal.low);c.fillStyle=softBodyFill(c,a,-8,1,8,38);c.beginPath();c.ellipse(.2,19,8.1,18.5,0,0,TAU);c.fill();
-  if(a.markings==="tuxedo")ellipse(c,2,27,5,8,rgba(a.accent,.78));else if(a.markings==="tabby")line(c,rgba(pal.deep,.48),1.35,()=>{for(const y of [13,20,27]){c.moveTo(-6,y);c.quadraticCurveTo(-1,y+2,3,y+1);}});
+  if(markingFor(a)==="tuxedo")ellipse(c,2,27,5,8,rgba(a.accent,.78));else if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.48),1.35,()=>{for(const y of [13,20,27]){c.moveTo(-6,y);c.quadraticCurveTo(-1,y+2,3,y+1);}});
   drawHead(c,a,{...pose,pupilY:.65},1,9,t,m);drawPaw(c,a,-6,-.5);drawPaw(c,a,6,-.5);c.restore();
 }
 function drawPounce(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
