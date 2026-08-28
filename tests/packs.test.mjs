@@ -30,3 +30,10 @@ test("named built-in cats keep their visual markings", () => {
   assert.equal(orange?.appearance.markings, "tabby");
   assert.equal(tuxedo?.appearance.markings, "tuxedo");
 });
+
+test("built-in cozy cat cannot bypass the procedural renderer with a sheet",()=>{
+  const cozy=BUILTIN_PACKS.find(pack=>pack.id==="cat-pixel");
+  assert.equal(cozy?.name,"Cozy Procedural Cat");
+  assert.equal(cozy?.appearance.sheet,undefined);
+  assert.equal(cozy?.appearance.markings,"tabby");
+});
