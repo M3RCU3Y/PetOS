@@ -2,6 +2,7 @@ import { SPECIES } from "../core/species.js";
 import { isAdoptionAnniversary } from "../core/pet.js";
 import type { PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types.js";
 import { drawIllustratedCat, type IllustratedCatPose } from "./cozyCatRaster.js";
+import { drawCozyObjectBack, drawCozyObjectFront } from "./cozyHabitat.js";
 import { PixelRenderer as LegacyPixelRenderer, buildPreviewState as legacyBuildPreviewState, renderPetPreview as legacyRenderPetPreview } from "./legacyRenderer.js";
 import type { RenderScene } from "./legacyRenderer.js";
 
@@ -69,18 +70,9 @@ function drawCatEffects(c:CanvasRenderingContext2D,p:PetState,pos:Vec2,t:number,
   const touchAge=recentTouchAge(p,wallNow);
   if(touchAge>=0&&touchAge<1050&&!p.body.held&&p.affect.valence>.32&&p.affect.stress<.4){
     const q=touchAge/1050;
-    for(let i=0;i<3;i++){
-      const local=Math.max(0,Math.min(1,q-i*.12));if(local<=0&&i>0)continue;
-      const drift=Math.sin((t/220)+i*2.1)*2.2;
-      drawPixelHeart(c,pos.x+p.body.facing*(11+i*8)+drift,pos.y-48-i*8-local*14,1+i*.15,(1-local)*(.78-i*.12));
-    }
+    for(let i=0;i<3;i++){const local=Math.max(0,Math.min(1,q-i*.12));if(local<=0&&i>0)continue;const drift=Math.sin((t/220)+i*2.1)*2.2;drawPixelHeart(c,pos.x+p.body.facing*(11+i*8)+drift,pos.y-48-i*8-local*14,1+i*.15,(1-local)*(.78-i*.12));}
   }
-  if(p.body.held&&p.affect.stress>.22){
-    c.save();c.strokeStyle="rgba(247,205,139,.78)";c.lineWidth=1.4;c.lineCap="square";
-    const x=pos.x+p.body.facing*19,y=pos.y-48;
-    for(let i=0;i<3;i++){c.beginPath();c.moveTo(x+i*5,y-i*5);c.lineTo(x+i*7+3,y-i*8-4);c.stroke();}
-    c.restore();
-  }
+  if(p.body.held&&p.affect.stress>.22){c.save();c.strokeStyle="rgba(247,205,139,.78)";c.lineWidth=1.4;c.lineCap="square";const x=pos.x+p.body.facing*19,y=pos.y-48;for(let i=0;i<3;i++){c.beginPath();c.moveTo(x+i*5,y-i*5);c.lineTo(x+i*7+3,y-i*8-4);c.stroke();}c.restore();}
   if(scene.debug){const d=scene.decisions[p.id],text=`${p.name} • ${p.behavior} • F${p.drives.fatigue.toFixed(2)} P${p.drives.play.toFixed(2)}`;c.font="11px ui-monospace,monospace";c.textAlign="left";c.fillStyle="rgba(10,12,18,.78)";c.fillRect(pos.x-5,pos.y-86,Math.max(190,text.length*6.4),34);c.fillStyle="#f5f7ff";c.fillText(text,pos.x,pos.y-71);if(d){c.fillStyle="#aab2ca";c.fillText(d.reason.slice(0,42),pos.x,pos.y-58);}}
   c.globalAlpha=1;c.textAlign="left";
 }
@@ -89,13 +81,22 @@ export class PixelRenderer extends LegacyPixelRenderer{
   private illustratedAppearances=new Map<string,PetAppearance>();private legacyCanvas:HTMLCanvasElement|null=null;private legacyLayer:LegacyPixelRenderer|null=null;
   private getLegacyLayer():LegacyPixelRenderer|null{if(typeof document==="undefined")return null;if(!this.legacyCanvas){this.legacyCanvas=document.createElement("canvas");this.legacyLayer=new LegacyPixelRenderer(this.legacyCanvas);}return this.legacyLayer;}
   override render(scene:RenderScene):void{
-    this.illustratedAppearances=new Map(scene.appearances);super.render({...scene,pets:[]});
-    const c=this.canvas.getContext("2d");if(!c)return;const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y,t=performance.now();const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);const legacyLayer=this.getLegacyLayer();const {weather:_weather,objects:_objects,pets:_pets,...petSceneBase}=scene;
+    this.illustratedAppearances=new Map(scene.appearances);
+    // Keep weather from the mature renderer, but habitat art is now painted in the same cozy raster language as the cats.
+    super.render({...scene,pets:[],objects:[]});
+    const c=this.canvas.getContext("2d");if(!c)return;
+    const ox=-scene.virtualBounds.x,oy=-scene.virtualBounds.y,t=performance.now();
+    const habitat=[...scene.objects].sort((a,b)=>a.position.y-b.position.y);
+    for(const object of habitat)drawCozyObjectBack(c,object,{x:object.position.x+ox,y:object.position.y+oy},t);
+
+    const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);const legacyLayer=this.getLegacyLayer();const {weather:_weather,objects:_objects,pets:_pets,...petSceneBase}=scene;
     for(const pet of ordered){
       const a=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
       if(catUsesIllustratedPath(pet,a)){const pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy},cursor=scene.cursor?{x:scene.cursor.x+ox,y:scene.cursor.y+oy}:undefined;drawCatShadow(c,pet,a,pos);paintIllustratedCat(c,pet,a,pos,t,cursor,scene.reducedMotion===true);drawCatEffects(c,pet,pos,t,scene);continue;}
       if(!legacyLayer||!this.legacyCanvas)continue;const onePetScene:RenderScene={...petSceneBase,pets:[pet],objects:[]};legacyLayer.render(onePetScene);c.save();c.imageSmoothingEnabled=false;c.drawImage(this.legacyCanvas,0,0,this.legacyCanvas.width,this.legacyCanvas.height,0,0,innerWidth,innerHeight);c.restore();
     }
+    // Foreground rims/leaves create local occlusion, so pets visually tuck into beds, bowls and tunnels.
+    for(const object of habitat)drawCozyObjectFront(c,object,{x:object.position.x+ox,y:object.position.y+oy},t);
   }
   override hitTest(pet:PetState,point:Vec2,bounds:Rect):boolean{
     const a=this.illustratedAppearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};if(!catUsesIllustratedPath(pet,a))return this.legacyLayer?.hitTest(pet,point,bounds)??super.hitTest(pet,point,bounds);const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y,s=a.scale;
