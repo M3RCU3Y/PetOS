@@ -14,50 +14,15 @@ type Anchor={x:number;y:number};
 function sleepCurl(p:PetState):boolean{return hash01(`${p.id}:sleep-pose`)>.42;}
 function headScale(p:PetState):number{return 1.035+hash01(`${p.id}:head`)*.085;}
 function bodyLength(p:PetState):number{return .91+hash01(`${p.id}:length`)*.095;}
-function standingHead(p:PetState,pose:IllustratedCatPose):Anchor{const bodyY=-27+pose.crouch*7-pose.bounce;return{x:22+(bodyLength(p)-1)*14+pose.crouch*5+pose.headDip*7,y:bodyY+2+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28};}
+function standingHead(p:PetState,pose:IllustratedCatPose):Anchor{const bodyY=-27+pose.crouch*7-pose.bounce,scratching=p.behavior==="scratch"&&pose.pawReach>0;return{x:22+(bodyLength(p)-1)*14+pose.crouch*5+pose.headDip*7+(scratching?1.8:0),y:bodyY+2+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28-(scratching?2.2:0)};}
 function headAnchor(p:PetState,pose:IllustratedCatPose,t:number):Anchor|null{
-  if(pose.peeking)return{x:0,y:-10};
-  if(pose.hanging)return{x:1,y:9};
-  if(pose.pouncing&&!p.body.grounded)return null;
-  if(pose.loaf)return{x:15,y:-20+Math.sin(t/1700)*.3};
-  if(pose.lying)return sleepCurl(p)?{x:12,y:-23}:{x:17,y:-13};
-  if(pose.sitting)return{x:7,y:-38.5+pose.headBob};
-  if(pose.vertical)return null;
-  return standingHead(p,pose);
+  if(pose.peeking)return{x:0,y:-10};if(pose.hanging)return{x:1,y:9};if(pose.pouncing&&!p.body.grounded)return null;if(pose.loaf)return{x:15,y:-20+Math.sin(t/1700)*.3};if(pose.lying)return sleepCurl(p)?{x:12,y:-23}:{x:17,y:-13};if(pose.sitting)return{x:7,y:-38.5+pose.headBob};if(pose.vertical)return null;return standingHead(p,pose);
 }
-
 function faceFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
-  const anchor=headAnchor(p,pose,t);if(!anchor)return;
-  const {x,y}=anchor,pattern=a.markings??"tabby",deep=shade(a.coat,.47),variant=hash01(`${p.id}:face-mark`),scale=headScale(p);
-  c.save();c.translate(x,y);c.scale(scale,scale);c.translate(-x,-y);
-  if(pattern==="tabby"){
-    line(c,rgba(deep,.7),.7,()=>{c.moveTo(x-4.8,y-7.4);c.lineTo(x-3.2,y-5.7);c.lineTo(x-1.8,y-7.2);c.lineTo(x-.2,y-5.5);c.lineTo(x+1.4,y-7);});
-    line(c,rgba(deep,.5),.65,()=>{c.moveTo(x-9.1,y+1.2);c.lineTo(x-6.6,y+2.15);c.moveTo(x-8.7,y+3.2);c.lineTo(x-6.2,y+3.55);});
-  }else if(pattern==="tuxedo"&&variant>.42){
-    line(c,rgba(a.accent,.72),1.35,()=>{c.moveTo(x-1.2,y-7.2);c.quadraticCurveTo(x-.1,y-4.8,x+.3,y-2.4);});
-    ellipse(c,x+8.9,y+3.05,.62,.42,"rgba(255,255,255,.48)");
-  }else if(pattern==="patched"){
-    const side=variant>.5?1:-1;ellipse(c,x+side*5.7,y-5.3,2.45,2.8,rgba(a.accent,.38),side*.2);
-  }
-  ellipse(c,x+8.85,y+2.3,.44,.3,"rgba(255,228,218,.58)");
-  ellipse(c,x+8.05,y+5.9,.4,.2,"rgba(255,238,229,.24)");
-  c.restore();
+  const anchor=headAnchor(p,pose,t);if(!anchor)return;const{x,y}=anchor,pattern=a.markings??"tabby",deep=shade(a.coat,.47),variant=hash01(`${p.id}:face-mark`),scale=headScale(p);c.save();c.translate(x,y);c.scale(scale,scale);c.translate(-x,-y);
+  if(pattern==="tabby"){line(c,rgba(deep,.7),.7,()=>{c.moveTo(x-4.8,y-7.4);c.lineTo(x-3.2,y-5.7);c.lineTo(x-1.8,y-7.2);c.lineTo(x-.2,y-5.5);c.lineTo(x+1.4,y-7);});line(c,rgba(deep,.5),.65,()=>{c.moveTo(x-9.1,y+1.2);c.lineTo(x-6.6,y+2.15);c.moveTo(x-8.7,y+3.2);c.lineTo(x-6.2,y+3.55);});}else if(pattern==="tuxedo"&&variant>.42){line(c,rgba(a.accent,.72),1.35,()=>{c.moveTo(x-1.2,y-7.2);c.quadraticCurveTo(x-.1,y-4.8,x+.3,y-2.4);});ellipse(c,x+8.9,y+3.05,.62,.42,"rgba(255,255,255,.48)");}else if(pattern==="patched"){const side=variant>.5?1:-1;ellipse(c,x+side*5.7,y-5.3,2.45,2.8,rgba(a.accent,.38),side*.2);}ellipse(c,x+8.85,y+2.3,.44,.3,"rgba(255,228,218,.58)");ellipse(c,x+8.05,y+5.9,.4,.2,"rgba(255,238,229,.24)");c.restore();
 }
-
 function bodyFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose):void{
-  if(pose.peeking||pose.hanging||pose.pouncing||pose.vertical)return;
-  const pattern=a.markings??"tabby",deep=shade(a.coat,.5),variant=hash01(`${p.id}:body-mark`);
-  if(!pose.lying&&!pose.loaf&&!pose.sitting){
-    const bodyY=-27+pose.crouch*7-pose.bounce;
-    line(c,"rgba(255,244,224,.18)",.55,()=>{c.moveTo(-10,bodyY-2.4);c.lineTo(-5.8,bodyY-3.2);c.moveTo(-1.5,bodyY-3.3);c.lineTo(3,bodyY-3.8);});
-    if(pattern==="tabby"&&variant>.32)line(c,rgba(deep,.44),.85,()=>{c.moveTo(-18,bodyY+2);c.lineTo(-15,bodyY+5.3);c.moveTo(-15,bodyY+1.2);c.lineTo(-12.2,bodyY+4.6);});
-    if(pattern==="tuxedo")ellipse(c,14.3,bodyY+10.2,5.1,3.05,rgba(a.accent,.34),-.12);
-  }else if(pose.loaf){
-    line(c,"rgba(255,244,224,.16)",.55,()=>{c.moveTo(-8,-20.4);c.lineTo(-2,-21.4);c.moveTo(2,-20.8);c.lineTo(7,-21.5);});
-  }
+  if(pose.peeking||pose.hanging||pose.pouncing||pose.vertical)return;const pattern=a.markings??"tabby",deep=shade(a.coat,.5),variant=hash01(`${p.id}:body-mark`);if(!pose.lying&&!pose.loaf&&!pose.sitting){const bodyY=-27+pose.crouch*7-pose.bounce;line(c,"rgba(255,244,224,.18)",.55,()=>{c.moveTo(-10,bodyY-2.4);c.lineTo(-5.8,bodyY-3.2);c.moveTo(-1.5,bodyY-3.3);c.lineTo(3,bodyY-3.8);});if(pattern==="tabby"&&variant>.32)line(c,rgba(deep,.44),.85,()=>{c.moveTo(-18,bodyY+2);c.lineTo(-15,bodyY+5.3);c.moveTo(-15,bodyY+1.2);c.lineTo(-12.2,bodyY+4.6);});if(pattern==="tuxedo")ellipse(c,14.3,bodyY+10.2,5.1,3.05,rgba(a.accent,.34),-.12);}else if(pose.loaf){line(c,"rgba(255,244,224,.16)",.55,()=>{c.moveTo(-8,-20.4);c.lineTo(-2,-21.4);c.moveTo(2,-20.8);c.lineTo(7,-21.5);});}
 }
-
-/** Tiny final accents painted inside the same low-resolution raster as the cat. */
-export function drawCatFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
-  bodyFinish(c,p,a,pose);faceFinish(c,p,a,pose,t);
-}
+export function drawCatFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{bodyFinish(c,p,a,pose);faceFinish(c,p,a,pose,t);}
