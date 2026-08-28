@@ -301,17 +301,27 @@ function drawHanging(c:CanvasRenderingContext2D,a:PetAppearance,pose:Illustrated
   if(markingFor(a)==="tuxedo")ellipse(c,2,27,5,8,rgba(a.accent,.78));else if(markingFor(a)==="tabby")line(c,rgba(pal.deep,.48),1.35,()=>{for(const y of [13,20,27]){c.moveTo(-6,y);c.quadraticCurveTo(-1,y+2,3,y+1);}});
   drawHead(c,a,{...pose,pupilY:.65},1,9,t,m);drawPaw(c,a,-6,-.5);drawPaw(c,a,6,-.5);c.restore();
 }
-function drawPounce(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
-  const pal=coatPalette(a);c.save();c.translate(1,-10);c.rotate(-.05);line(c,pal.low,5.0*m.tail,()=>{c.moveTo(-23,-8);c.bezierCurveTo(-34,-12,-42,-8,-48,-13);});
-  ellipse(c,0,-12,26*m.bodyLength,10.6*m.bodyRound,pal.low,-.03);c.fillStyle=softBodyFill(c,a,-25,-22,25,-3);c.beginPath();c.ellipse(1,-12.6,24.8*m.bodyLength,9.6*m.bodyRound,-.03,0,TAU);c.fill();bodyMarkings(c,a,-20);
+function drawPounce(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
+  const pal=coatPalette(a),vy=p.body.velocity.y;
+  const launch=clamp((-vy-35)/185),descent=clamp((vy-25)/190),apex=clamp(1-Math.max(launch,descent*.72));
+  const pitch=-.045+clamp(vy/1600,-.055,.07);
+  c.save();c.translate(1,-10);c.rotate(pitch);
+  line(c,pal.low,5.0*m.tail,()=>{c.moveTo(-23,-8);c.bezierCurveTo(-34,-12+launch*3,-42,-8+descent*2,-48,-13+descent*4);});
+  const bodyStretch=1+apex*.035-launch*.025;
+  ellipse(c,0,-12,26*m.bodyLength*bodyStretch,10.6*m.bodyRound,pal.low,-.03);
+  c.fillStyle=softBodyFill(c,a,-25,-22,25,-3);c.beginPath();c.ellipse(1,-12.6,24.8*m.bodyLength*bodyStretch,9.6*m.bodyRound,-.03,0,TAU);c.fill();bodyMarkings(c,a,-20);
   const limb=(x1:number,y1:number,x2:number,y2:number,front:boolean)=>{line(c,front?pal.mid:pal.low,4.8*m.legs,()=>{c.moveTo(x1,y1);c.quadraticCurveTo((x1+x2)*.5,y1+1,x2,y2);});drawPaw(c,a,x2+1,y2,.08);};
-  limb(16,-10,38,-5,true);limb(13,-15,34,-12,true);limb(-17,-7,-32,-1,false);limb(-20,-14,-34,-9,false);
-  drawHead(c,a,{...pose,eyeOpen:1,pupilX:.7,pupilY:.05,earBack:.08},24,-17,t,m);c.restore();
+  const foreReach=1-launch*.28+descent*.08,hindTuck=launch*.52;
+  limb(16,-10,16+(38-16)*foreReach,-5+descent*4,true);
+  limb(13,-15,13+(34-13)*foreReach,-12+descent*3,true);
+  limb(-17,-7,-32+hindTuck*8,-1-launch*4,false);
+  limb(-20,-14,-34+hindTuck*9,-9-launch*3,false);
+  drawHead(c,a,{...pose,eyeOpen:1,pupilX:.7,pupilY:.05+descent*.14,earBack:.08+launch*.08},24,-17+descent*.6,t,m);c.restore();
 }
 
 function drawVectorCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
   const m=morphFor(p);c.save();if(pose.arch>0)c.translate(0,-2.5*pose.arch);
-  if(pose.pouncing&&!p.body.grounded)drawPounce(c,a,pose,t,m);
+  if(pose.pouncing&&!p.body.grounded)drawPounce(c,p,a,pose,t,m);
   else if(pose.loaf)drawLoaf(c,a,pose,t,m);
   else if(pose.peeking)drawPeeking(c,a,pose,t,m);
   else if(pose.hanging)drawHanging(c,a,pose,t,m);
