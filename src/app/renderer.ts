@@ -67,11 +67,11 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
 
   return{
     lying:sleeping,sitting:b==="sit"||b==="perch"||b==="groom",vertical:b==="climb",hanging:b==="hang",peeking:b==="peek",
-    crouch:stalking?.85:b==="hide"?.9:feedingSettled?.32:investigating?.38:stretching?.12:settling?.08:pleased?.06:(b==="pounce"&&p.body.grounded)?1:0,
-    bow:stretching?1:["play_pet","play_fight"].includes(b)?.85:b==="greet_pet"?.55:settling?.05:pleased?.18:0,
+    crouch:stalking?.85:b==="hide"?.9:feedingSettled?.32:investigating?.38:stretching?.12:settling?.08:pleased?.07:(b==="pounce"&&p.body.grounded)?1:0,
+    bow:stretching?1:["play_pet","play_fight"].includes(b)?.85:b==="greet_pet"?.55:settling?.05:pleased?.25:0,
     arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
-    headDip:feedingSettled?.9:investigating?.72:stretching?.12:settling?.11:pleased?.08:0,
-    headBob:feedingSettled?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:b==="groom"?Math.sin(t/150)*2.5:settling?Math.sin(t/540)*.28:pleased?Math.sin(t/190)*.55:0,
+    headDip:feedingSettled?.9:investigating?.72:stretching?.12:settling?.11:pleased?.12:0,
+    headBob:feedingSettled?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:b==="groom"?Math.sin(t/150)*2.5:settling?Math.sin(t/540)*.28:pleased?Math.sin(t/230)*.7:0,
     eyeOpen,pupilX,pupilY,earBack:tenseHeld?1:scared?.88:(p.affect.stress>.35?.5:0),earTwitch,
     tailLift:stalking?-.42:investigating?.12:stretching?.58:feedingSettled?.12:scratchingSettled?.38:pleased?1:happy?1:scared?-1:loaf?.18:.3,
     tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:feedingSettled?.65:scratchingSettled?1.1:loaf?.7:pleased?3.8:happy?6.5:p.affect.valence>.35?idleTail:2.2,
@@ -90,8 +90,9 @@ function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearan
   if(pose.lying)sy*=1+Math.sin(t/620)*.018;
   if(p.behavior==="stretch"){sx*=1.08;sy*=.94;}
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
+  const nuzzle=pleased?smoothstep(clamp(1-touchAge/1100))*Math.sin(clamp(touchAge/1100)*Math.PI)*1.7:0;
   const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
-  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion);c.restore();
+  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion);c.restore();
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{
