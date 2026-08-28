@@ -2,10 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { drawIllustratedCat } from "../dist/src/app/illustratedCat.js";
+import { drawIllustratedCat as drawBaseCat } from "../dist/src/app/illustratedCat.js";
+import { drawIllustratedCat as drawCozyCat } from "../dist/src/app/cozyCatRaster.js";
 
-test("illustrated cat renderer is part of the compiled app", () => {
-  assert.equal(typeof drawIllustratedCat, "function");
+test("illustrated cat renderers are part of the compiled app", () => {
+  assert.equal(typeof drawBaseCat, "function");
+  assert.equal(typeof drawCozyCat, "function");
 });
 
 test("illustrated cats keep the cozy pixel-painted rendering contract", () => {
