@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compareVersions, isCompatible, validatePackDetailed } from "../dist/src/core/packs.js";
+import { BUILTIN_PACKS, compareVersions, isCompatible, validatePackDetailed } from "../dist/src/core/packs.js";
 
 test("version comparison works", () => {
   assert.ok(compareVersions("2.0.0", "1.0.0") > 0);
@@ -22,4 +22,11 @@ test("detailed validation catches issues", () => {
   const warn = validatePackDetailed({ id: "ok", name: "OK", species: "cat", appearance: { coat: "red", accent: "#fff", eye: "#000" } });
   assert.ok(warn.pack !== null);
   assert.ok(warn.warnings.length > 0);
+});
+
+test("named built-in cats keep their visual markings", () => {
+  const orange = BUILTIN_PACKS.find(pack => pack.id === "cat-orange");
+  const tuxedo = BUILTIN_PACKS.find(pack => pack.id === "cat-tuxedo");
+  assert.equal(orange?.appearance.markings, "tabby");
+  assert.equal(tuxedo?.appearance.markings, "tuxedo");
 });
