@@ -91,7 +91,7 @@ function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearan
   if(p.behavior==="stretch"){sx*=1.08;sy*=.94;}
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
   const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
-  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t);c.restore();
+  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion);c.restore();
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{
@@ -103,19 +103,29 @@ function drawPixelHeart(c:CanvasRenderingContext2D,x:number,y:number,size:number
   for(const [bx,by] of blocks)c.fillRect(Math.round(x+bx*s),Math.round(y+by*s),s,s);
   c.fillRect(Math.round(x+s),Math.round(y+3*s),s,s);c.restore();
 }
-function drawCatEffects(c:CanvasRenderingContext2D,p:PetState,pos:Vec2,t:number,scene:RenderScene):void{
-  const mv=SPECIES.cat.movement,wallNow=Date.now();
+function drawPixelZ(c:CanvasRenderingContext2D,x:number,y:number,size:number,alpha:number):void{
+  const s=Math.max(1,Math.round(size));c.save();c.globalAlpha=alpha;c.fillStyle="#cfd8ec";
+  for(let i=0;i<3;i++)c.fillRect(Math.round(x+i*s),Math.round(y),s,s);
+  c.fillRect(Math.round(x+2*s),Math.round(y+s),s,s);c.fillRect(Math.round(x+s),Math.round(y+2*s),s,s);c.fillRect(Math.round(x),Math.round(y+3*s),s,s);
+  for(let i=0;i<3;i++)c.fillRect(Math.round(x+i*s),Math.round(y+4*s),s,s);c.restore();
+}
+function drawPixelBang(c:CanvasRenderingContext2D,x:number,y:number,size:number,alpha:number):void{
+  const s=Math.max(1,Math.round(size));c.save();c.globalAlpha=alpha;c.fillStyle="#ffd76e";
+  c.fillRect(Math.round(x),Math.round(y),s*2,s*5);c.fillRect(Math.round(x),Math.round(y+s*7),s*2,s*2);c.restore();
+}
+function drawCatEffects(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,scene:RenderScene):void{
+  const mv=SPECIES.cat.movement,wallNow=Date.now(),s=a.scale*ILLUSTRATED_CAT_SCALE;
   if(p.behavior==="sleep"||p.behavior==="cuddle"){
-    c.textAlign="left";for(let i=0;i<3;i++){const prog=((t/1300)+i/3)%1;c.globalAlpha=(1-prog)*.6;c.fillStyle="#cfd8ec";c.font=`bold ${8+i*3}px ui-monospace,monospace`;c.fillText("z",pos.x+mv.bodyWidth*.3+prog*12,pos.y-27-prog*20-i*4);}c.globalAlpha=1;
+    for(let i=0;i<3;i++){const prog=((t/1400)+i/3)%1,size=1+(i===2?1:0);drawPixelZ(c,pos.x+mv.bodyWidth*.28*s+prog*11*s+i*2,pos.y-30*s-prog*19*s-i*5,size,(1-prog)*(.55-i*.07));}
   }
   const startleAge=wallNow-p.behaviorSinceMs;
-  if(p.behavior==="startle"&&startleAge>=0&&startleAge<900){c.globalAlpha=1-startleAge/900;c.fillStyle="#ffd76e";c.font="bold 14px ui-monospace,monospace";c.textAlign="center";c.fillText("!",pos.x+p.body.facing*13,pos.y-mv.bodyHeight-18-Math.sin(startleAge/120)*2);c.globalAlpha=1;}
+  if(p.behavior==="startle"&&startleAge>=0&&startleAge<900){const alpha=1-startleAge/900;drawPixelBang(c,pos.x+p.body.facing*13*s,pos.y-mv.bodyHeight*s-22-Math.sin(startleAge/120)*2,1,alpha);}
   const touchAge=recentTouchAge(p,wallNow);
   if(touchAge>=0&&touchAge<1050&&!p.body.held&&p.behavior!=="seek_user"&&p.affect.valence>.32&&p.affect.stress<.4){
     const q=touchAge/1050;
-    for(let i=0;i<3;i++){const local=clamp(q-i*.12);if(local<=0&&i>0)continue;const drift=Math.sin((t/220)+i*2.1)*2.2;drawPixelHeart(c,pos.x+p.body.facing*(11+i*8)+drift,pos.y-48-i*8-local*14,1+i*.15,(1-local)*(.78-i*.12));}
+    for(let i=0;i<3;i++){const local=clamp(q-i*.12);if(local<=0&&i>0)continue;const drift=Math.sin((t/220)+i*2.1)*2.2;drawPixelHeart(c,pos.x+p.body.facing*(11+i*8)*s+drift,pos.y-(48+i*8+local*14)*s,1+i*.15,(1-local)*(.78-i*.12));}
   }
-  if(p.body.held&&p.affect.stress>.22){c.save();c.strokeStyle="rgba(247,205,139,.78)";c.lineWidth=1.4;c.lineCap="square";const x=pos.x+p.body.facing*19,y=pos.y-48;for(let i=0;i<3;i++){c.beginPath();c.moveTo(x+i*5,y-i*5);c.lineTo(x+i*7+3,y-i*8-4);c.stroke();}c.restore();}
+  if(p.body.held&&p.affect.stress>.22){c.save();c.strokeStyle="rgba(247,205,139,.78)";c.lineWidth=Math.max(1,1.4*s);c.lineCap="square";const x=pos.x+p.body.facing*19*s,y=pos.y-48*s;for(let i=0;i<3;i++){c.beginPath();c.moveTo(x+i*5,y-i*5);c.lineTo(x+i*7+3,y-i*8-4);c.stroke();}c.restore();}
   if(scene.debug){const d=scene.decisions[p.id],text=`${p.name} • ${p.behavior} • F${p.drives.fatigue.toFixed(2)} P${p.drives.play.toFixed(2)}`;c.font="11px ui-monospace,monospace";c.textAlign="left";c.fillStyle="rgba(10,12,18,.78)";c.fillRect(pos.x-5,pos.y-86,Math.max(190,text.length*6.4),34);c.fillStyle="#f5f7ff";c.fillText(text,pos.x,pos.y-71);if(d){c.fillStyle="#aab2ca";c.fillText(d.reason.slice(0,42),pos.x,pos.y-58);}}
   c.globalAlpha=1;c.textAlign="left";
 }
@@ -133,7 +143,7 @@ export class PixelRenderer extends LegacyPixelRenderer{
     const ordered=[...scene.pets].sort((a,b)=>a.body.position.y-b.body.position.y);const legacyLayer=this.getLegacyLayer();const {weather:_weather,objects:_objects,pets:_pets,...petSceneBase}=scene;
     for(const pet of ordered){
       const a=scene.appearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
-      if(catUsesIllustratedPath(pet,a)){const pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy},cursor=scene.cursor?{x:scene.cursor.x+ox,y:scene.cursor.y+oy}:undefined;drawCatShadow(c,pet,a,pos);paintIllustratedCat(c,pet,a,pos,t,cursor,scene.reducedMotion===true);drawCatEffects(c,pet,pos,t,scene);continue;}
+      if(catUsesIllustratedPath(pet,a)){const pos={x:pet.body.position.x+ox,y:pet.body.position.y+oy},cursor=scene.cursor?{x:scene.cursor.x+ox,y:scene.cursor.y+oy}:undefined;drawCatShadow(c,pet,a,pos);paintIllustratedCat(c,pet,a,pos,t,cursor,scene.reducedMotion===true);drawCatEffects(c,pet,a,pos,t,scene);continue;}
       if(!legacyLayer||!this.legacyCanvas)continue;const onePetScene:RenderScene={...petSceneBase,pets:[pet],objects:[]};legacyLayer.render(onePetScene);c.save();c.imageSmoothingEnabled=false;c.drawImage(this.legacyCanvas,0,0,this.legacyCanvas.width,this.legacyCanvas.height,0,0,innerWidth,innerHeight);c.restore();
     }
     for(const object of habitat)drawCozyObjectFront(c,object,{x:object.position.x+ox,y:object.position.y+oy},t);
