@@ -10,7 +10,7 @@ export { resolveSheetAnimation, preloadSheet, buildPreviewState } from "./legacy
 export type { RenderScene } from "./legacyRenderer.js";
 
 const TAU=Math.PI*2;
-const ILLUSTRATED_CAT_SCALE=1.08;
+const ILLUSTRATED_CAT_SCALE=1.23;
 function hash01(id:string):number{let h=2166136261;for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function clamp(v:number,a=0,b=1):number{return Math.max(a,Math.min(b,v));}
 function smoothstep(v:number):number{const q=clamp(v);return q*q*(3-2*q);}
@@ -76,7 +76,7 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     tailLift:stalking?-.42:investigating?.12:stretching?.58:pleased?1:happy?1:scared?-1:loaf?.18:.3,
     tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:loaf?.7:pleased?3.8:happy?6.5:p.affect.valence>.35?idleTail:2.2,
     tailFast:quietTail?false:pleased?false:happy||p.affect.arousal>.7,
-    gait:(t+phase)/(fast?80:walking?140:180),legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0)*motionScale,
+    gait:(t+phase)/(fast?80:walking?140:180),legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?1.45:walking?.85:0)*motionScale,
     puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
     grooming:b==="groom",licking:b==="groom"||b==="drink",pouncing:b==="pounce",loaf
   };
