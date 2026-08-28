@@ -30,8 +30,8 @@ function blinkOpen(t:number,phase:number,relaxed:boolean):number{
 }
 
 function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMotion=false):IllustratedCatPose{
-  const b=p.behavior,speed=Math.abs(p.body.velocity.x),fast=speed>110,walking=speed>8&&!fast,airborne=!p.body.grounded;
-  const sleeping=b==="sleep"||b==="cuddle",feeding=b==="eat"||b==="drink",stalking=b==="stalk",investigating=b==="investigate",stretching=b==="stretch",motionScale=reducedMotion?.4:1;
+  const b=p.behavior,speed=Math.abs(p.body.velocity.x),fast=speed>110,walking=speed>8&&!fast,stationary=speed<8,airborne=!p.body.grounded;
+  const sleeping=b==="sleep"||b==="cuddle",feeding=b==="eat"||b==="drink",feedingSettled=feeding&&stationary,scratchingSettled=b==="scratch"&&stationary,stalking=b==="stalk",investigating=b==="investigate",stretching=b==="stretch",motionScale=reducedMotion?.4:1;
   const touchAge=recentTouchAge(p),recentlyTouched=touchAge>=0&&touchAge<1100&&!p.body.held&&b!=="seek_user";
   const pleased=recentlyTouched&&p.affect.valence>.28&&p.affect.stress<.4;
   const tenseHeld=p.body.held&&p.affect.stress>.22;
@@ -60,25 +60,25 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
 
   const happy=["play_pet","play_fight","play_toy","greet_pet","zoomies","seek_user","carry_toy"].includes(b)||pleased;
   const scared=b==="startle"||p.affect.stress>.6||tenseHeld;
-  const quietTail=stalking||investigating||stretching||loaf;
+  const quietTail=stalking||investigating||stretching||loaf||feedingSettled||scratchingSettled;
   const earCycle=((t+phase*23)%7600)/7600;
   const earTwitch=earCycle>.962?Math.sin((earCycle-.962)/.038*Math.PI)*1.65:0;
   const idleTail=calmIdle?1.7:2.8;
 
   return{
     lying:sleeping,sitting:b==="sit"||b==="perch"||b==="groom",vertical:b==="climb",hanging:b==="hang",peeking:b==="peek",
-    crouch:stalking?.85:b==="hide"?.9:feeding?.32:investigating?.38:stretching?.12:settling?.08:pleased?.06:(b==="pounce"&&p.body.grounded)?1:0,
+    crouch:stalking?.85:b==="hide"?.9:feedingSettled?.32:investigating?.38:stretching?.12:settling?.08:pleased?.06:(b==="pounce"&&p.body.grounded)?1:0,
     bow:stretching?1:["play_pet","play_fight"].includes(b)?.85:b==="greet_pet"?.55:settling?.05:pleased?.18:0,
     arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
-    headDip:feeding?.9:investigating?.72:stretching?.12:settling?.11:pleased?.08:0,
-    headBob:feeding?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:b==="groom"?Math.sin(t/150)*2.5:settling?Math.sin(t/540)*.28:pleased?Math.sin(t/190)*.55:0,
+    headDip:feedingSettled?.9:investigating?.72:stretching?.12:settling?.11:pleased?.08:0,
+    headBob:feedingSettled?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:b==="groom"?Math.sin(t/150)*2.5:settling?Math.sin(t/540)*.28:pleased?Math.sin(t/190)*.55:0,
     eyeOpen,pupilX,pupilY,earBack:tenseHeld?1:scared?.88:(p.affect.stress>.35?.5:0),earTwitch,
-    tailLift:stalking?-.42:investigating?.12:stretching?.58:pleased?1:happy?1:scared?-1:loaf?.18:.3,
-    tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:loaf?.7:pleased?3.8:happy?6.5:p.affect.valence>.35?idleTail:2.2,
+    tailLift:stalking?-.42:investigating?.12:stretching?.58:feedingSettled?.12:scratchingSettled?.38:pleased?1:happy?1:scared?-1:loaf?.18:.3,
+    tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:feedingSettled?.65:scratchingSettled?1.1:loaf?.7:pleased?3.8:happy?6.5:p.affect.valence>.35?idleTail:2.2,
     tailFast:quietTail?false:pleased?false:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:walking?140:180),legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?1.45:walking?.85:0)*motionScale,
-    puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
-    grooming:b==="groom",licking:b==="groom"||b==="drink",pouncing:b==="pounce",loaf
+    puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded&&stationary?Math.sin(t/110):0):(scratchingSettled?(Math.sin(t/90)*.5+.5):0),
+    grooming:b==="groom",licking:b==="groom"||(b==="drink"&&feedingSettled),pouncing:b==="pounce",loaf
   };
 }
 
