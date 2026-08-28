@@ -22,6 +22,14 @@ test("illustrated cats keep the cozy pixel-painted rendering contract", () => {
   assert.match(cozy, /imageSmoothingEnabled=false/);
 });
 
+test("mixed renderer keeps pets in one shared depth order", () => {
+  const root = join(import.meta.dirname, "..");
+  const renderer = readFileSync(join(root, "src", "app", "renderer.ts"), "utf8");
+  assert.match(renderer, /ordered=\[\.\.\.scene\.pets\]\.sort/);
+  assert.match(renderer, /legacyLayer\.render\(onePetScene\)/);
+  assert.match(renderer, /super\.render\(\{\.\.\.scene,pets:\[\]\}\)/);
+});
+
 test("cat lab ships with local web builds", () => {
   const root = join(import.meta.dirname, "..");
   const lab = join(root, "dist", "cat-lab.html");
