@@ -179,7 +179,6 @@ export class PetPhysics {
     const profile=SPECIES[state.species].movement;
     if(["sleep","groom","sit"].includes(state.behavior)){this.flights.delete(state.id);return false;}
     if(world.nowMs-flight.startedAt>MAX_FLIGHT_MS){this.flights.delete(state.id);return false;}
-    // If the flight target left the known desktop (monitor unplug, window closed), give up.
     const b=this.virtualBounds(world);
     if(flight.target.x<b.x-300||flight.target.x>b.x+b.width+300||flight.target.y<b.y-500||flight.target.y>b.y+b.height+600){
       this.flights.delete(state.id);
@@ -257,7 +256,13 @@ export class PetPhysics {
     if(state.body.target)return state.body.target;
     const targetId=state.behaviorTargetId;
     if(targetId){
-      const object=world.objects.find(o=>o.id===targetId);if(object)return object.position;
+      const object=world.objects.find(o=>o.id===targetId);
+      if(object){
+        const dx=object.position.x-state.body.position.x,dir=Math.sign(dx||state.body.facing||1);
+        if(state.behavior==="eat"||state.behavior==="drink")return{x:object.position.x-dir*24,y:object.position.y};
+        if(state.behavior==="scratch")return{x:object.position.x-dir*28,y:object.position.y};
+        return object.position;
+      }
       const pet=world.nearbyPets.find(p=>p.id===targetId);if(pet)return pet.position;
       const surface=world.surfaces.find(s=>s.id===targetId);if(surface)return{x:surface.rect.x+surface.rect.width/2,y:surface.walkY};
     }
