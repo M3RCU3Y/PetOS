@@ -11,6 +11,7 @@ export type { RenderScene } from "./legacyRenderer.js";
 const TAU=Math.PI*2;
 function hash01(id:string):number{let h=2166136261;for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function catUsesIllustratedPath(pet:PetState,appearance:PetAppearance):boolean{return pet.species==="cat"&&!appearance.sheet;}
+function cozyCatAppearance(a:PetAppearance):PetAppearance{return a.markings? a:{...a,markings:"tabby"};}
 
 function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMotion=false):IllustratedCatPose{
   const b=p.behavior,speed=Math.abs(p.body.velocity.x),fast=speed>110,walking=speed>8&&!fast,airborne=!p.body.grounded,sleeping=b==="sleep"||b==="cuddle",feeding=b==="eat"||b==="drink",stalking=b==="stalk",motionScale=reducedMotion?.4:1;
@@ -36,8 +37,9 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
 
 function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,cursor?:Vec2,reducedMotion=false):void{
   const pose=computeCatPose(p,t,hash01(p.id)*10000,cursor,reducedMotion);if(isAdoptionAnniversary(p,Date.now()))pose.party=true;
+  const art=cozyCatAppearance(a);
   let sy=1,sx=1;if(!p.body.grounded){sy=Math.min(1.15,1+Math.abs(p.body.velocity.y)*.00042);sx=Math.pow(sy,-.68);}if(pose.lying)sy*=1+Math.sin(t/620)*.018;
-  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*a.scale,sy*a.scale);drawIllustratedCat(c,p,a,pose,t);c.restore();
+  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*art.scale,sy*art.scale);drawIllustratedCat(c,p,art,pose,t);c.restore();
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{if(!p.body.grounded)return;c.save();c.fillStyle="rgba(0,0,0,.16)";c.beginPath();c.ellipse(pos.x,pos.y+1,25*a.scale,3.8*a.scale,0,0,TAU);c.fill();c.restore();}
@@ -64,5 +66,5 @@ export class PixelRenderer extends LegacyPixelRenderer{
 }
 
 export function renderPetPreview(canvas:HTMLCanvasElement,species:Species,appearance:PetAppearance,behavior:string,t:number):void{
-  if(species!=="cat"||appearance.sheet){legacyRenderPetPreview(canvas,species,appearance,behavior,t);return;}const c=canvas.getContext("2d");if(!c)return;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;const groundY=canvas.height*.9,state=legacyBuildPreviewState(species,behavior),pos={x:canvas.width/2,y:groundY};drawCatShadow(c,state,appearance,pos);paintIllustratedCat(c,state,appearance,pos,t);
+  if(species!=="cat"||appearance.sheet){legacyRenderPetPreview(canvas,species,appearance,behavior,t);return;}const c=canvas.getContext("2d");if(!c)return;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;const groundY=canvas.height*.9,state=legacyBuildPreviewState(species,behavior),pos={x:canvas.width/2,y:groundY};const art=cozyCatAppearance(appearance);drawCatShadow(c,state,art,pos);paintIllustratedCat(c,state,art,pos,t);
 }
