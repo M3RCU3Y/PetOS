@@ -4,25 +4,27 @@
 <section><h2>World</h2><label class="toggle"><span>Pets enabled<small>Pause or resume the whole habitat</small></span><input id="enabled-toggle" type="checkbox"></label><label class="toggle"><span>Interaction mode<small>Lets clicks reach pets. Ctrl + Shift + P</small></span><input id="interaction-toggle" type="checkbox"></label><label class="toggle"><span>Debug mind<small>Show behavior and drive telemetry</small></span><input id="debug-toggle" type="checkbox"></label><label class="toggle"><span>Sounds<small>Species vocalizations and ambient effects</small></span><input id="sound-toggle" type="checkbox" checked></label><label class="stack"><span class="field-label">Volume</span><input id="sound-volume" type="range" min="0" max="1" step="0.05" value="0.7"></label><label class="toggle"><span>Quiet hours<small>No sounds between 22:00 and 08:00, or while gaming</small></span><input id="quiet-hours-toggle" type="checkbox"></label><label class="toggle"><span>Start with Windows<small>Launch PetOS when you log in</small></span><input id="autostart-toggle" type="checkbox"></label></section>
 <section><h2>Your pets</h2><div id="pet-list"></div><div class="stack"><select id="pack-select" aria-label="Pet type"></select><input id="pet-name" aria-label="Pet name" placeholder="Pet name"><button class="primary" id="add-pet">Add pet</button></div></section>
 <section><h2>Habitat</h2><p>Pick a piece of habitat furniture, then click the desktop to place it. Objects advertise real affordances: hungry pets seek food, tired pets learn beds, cats use scratchers, toys satisfy play.</p><div id="furniture-palette" class="button-grid habitat-grid"></div></section>
-<section><h2>Create a pet</h2><p>Design a companion from scratch, or import a photo of a real pet to borrow its colors and markings.</p>
+<section><h2>Create a pet</h2><p>Build a one-of-a-kind companion from live procedural art, or borrow a real pet's palette from a photo.</p>
 <div class="creator-layout">
 <div class="creator-form">
 <div class="species-row" id="creator-species">
 <button data-species="cat" class="primary">🐈 Cat</button><button data-species="dog">🐕 Dog</button><button data-species="rabbit">🐇 Rabbit</button><button data-species="bird">🐦 Bird</button>
 </div>
 <label class="stack"><span class="field-label">Name</span><input id="creator-name" placeholder="Pet name" maxlength="24"></label>
+<label class="stack"><span class="field-label">Coat pattern</span><select id="creator-markings"><option value="tabby" selected>Tabby · soft stripes</option><option value="tuxedo">Tuxedo · bright bib</option><option value="patched">Patched · two-tone</option><option value="uniform">Uniform · clean coat</option></select></label>
 <div class="color-row">
 <label class="stack"><span class="field-label">Coat</span><input id="creator-coat" type="color" value="#d98742"></label>
-<label class="stack"><span class="field-label">Markings</span><input id="creator-accent" type="color" value="#f2c287"></label>
+<label class="stack"><span class="field-label">Soft areas</span><input id="creator-accent" type="color" value="#f2c287"></label>
 <label class="stack"><span class="field-label">Eyes</span><input id="creator-eye" type="color" value="#d7ef76"></label>
 </div>
+<button id="creator-randomize" class="creator-secondary" type="button">↻ Shuffle a cozy look</button>
 </div>
-<canvas id="creator-preview" width="150" height="130" aria-label="Pet preview"></canvas>
+<div class="creator-preview-card"><canvas id="creator-preview" width="240" height="190" aria-label="Pet preview"></canvas><small id="creator-preview-caption">Live procedural preview</small></div>
 </div>
 <div id="creator-sliders"></div>
 <label class="file">Use a photo 📷<input id="creator-photo" type="file" accept="image/*"></label>
 <button class="primary" id="creator-create">Move in ✨</button>
-<p id="creator-markings-note" style="font-size:.75rem;opacity:.6"></p>
+<p id="creator-markings-note" style="font-size:.75rem;opacity:.6">Pattern, palette, expression and motion are rendered live. No cat sprite sheet required.</p>
 </section>
 <section><h2>Focus companion</h2><p>Work in quiet stretches — your pets settle down with you, then come say hi on breaks.</p>
 <label class="stack"><span class="field-label">Session lengths (minutes)</span><div class="color-row"><label class="stack"><span class="field-label">Work</span><input id="focus-work" type="number" min="1" max="120" value="25"></label><label class="stack"><span class="field-label">Break</span><input id="focus-break" type="number" min="1" max="60" value="5"></label></div></label>
