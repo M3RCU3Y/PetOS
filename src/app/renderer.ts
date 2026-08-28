@@ -1,6 +1,6 @@
 import { SPECIES } from "../core/species.js";
 import { isAdoptionAnniversary } from "../core/pet.js";
-import type { Behavior, PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types.js";
+import type { PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types.js";
 import { drawIllustratedCat, type IllustratedCatPose } from "./illustratedCat.js";
 import {
   PixelRenderer as LegacyPixelRenderer,
@@ -13,8 +13,6 @@ export { resolveSheetAnimation, preloadSheet, buildPreviewState } from "./legacy
 export type { RenderScene } from "./legacyRenderer.js";
 
 const TAU=Math.PI*2;
-const TRAVERSAL_BEHAVIORS=new Set<Behavior>(["climb","hang","peek"]);
-
 function hash01(id:string):number{
   let h=2166136261;
   for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}
@@ -22,7 +20,7 @@ function hash01(id:string):number{
 }
 
 function catUsesIllustratedPath(pet:PetState,appearance:PetAppearance):boolean{
-  return pet.species==="cat"&&!appearance.sheet&&!TRAVERSAL_BEHAVIORS.has(pet.behavior);
+  return pet.species==="cat"&&!appearance.sheet;
 }
 
 function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMotion=false):IllustratedCatPose{
@@ -58,6 +56,9 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
   return{
     lying:sleeping,
     sitting:b==="sit"||b==="perch"||b==="groom",
+    vertical:b==="climb",
+    hanging:b==="hang",
+    peeking:b==="peek",
     crouch:b==="stalk"?.85:b==="hide"?.9:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
     bow:["stretch","play_pet","play_fight"].includes(b)?1:b==="greet_pet"?.55:0,
     arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
@@ -66,7 +67,7 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     eyeOpen,pupilX,pupilY,
     earBack:scared?1:(p.affect.stress>.35?.5:0),
     earTwitch:((t/2900+phase/777)%1)<.05?2:0,
-    tailLift:happy?1:scared?-1:.3,
+    tailLift:b==="stalk"?-.35:happy?1:scared?-1:.3,
     tailWagAmp:happy?8:p.affect.valence>.35?5:3,
     tailFast:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:140),
@@ -75,7 +76,8 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     puff:b==="startle",
     carry:b==="carry_toy",
     pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
-    grooming:b==="groom"
+    grooming:b==="groom",
+    licking:b==="groom"||b==="drink"
   };
 }
 
@@ -180,6 +182,9 @@ export class PixelRenderer extends LegacyPixelRenderer{
     const x=pet.body.position.x-bounds.x;
     const y=pet.body.position.y-bounds.y;
     const s=a.scale;
+    if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;
+    if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;
+    if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;
     return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
   }
 }
