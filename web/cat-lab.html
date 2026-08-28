@@ -7,11 +7,11 @@
   </style>
 </head>
 <body><main>
-  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Procedural Cat Lab</h1><p>A cozy tuning room for the live code-drawn cat. No authored sprites: anatomy, coat, markings, expression, motion and stable individuality all come from the renderer.</p></div><div class="badge">160px ART RASTER · NEAREST OUTPUT</div></header>
+  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Procedural Cat Lab</h1><p>A cozy tuning room for the live code-drawn cat. No authored sprites: anatomy, coat, markings, expression, motion and stable individuality all come from the renderer.</p></div><div class="badge">72% ART DENSITY · NEAREST OUTPUT</div></header>
   <div class="shell">
     <section class="panel">
       <div class="panel-title"><strong>Art direction</strong><span>live controls</span></div>
-      <label>Moment<select id="behavior"><option>idle</option><option>loaf</option><option>walk</option><option>run</option><option>sit</option><option>sleep</option><option>stalk</option><option>pounce</option><option>stretch</option><option>startle</option><option>groom</option><option>eat</option><option>drink</option><option>climb</option><option>hang</option><option>peek</option></select></label>
+      <label>Moment<select id="behavior"><option>idle</option><option>loaf</option><option>walk</option><option>run</option><option>sit</option><option>sleep</option><option>investigate</option><option>stretch</option><option>stalk</option><option>pounce</option><option>startle</option><option>groom</option><option>eat</option><option>drink</option><option>climb</option><option>hang</option><option>peek</option></select></label>
       <label>Coat pattern<select id="markings"><option>tabby</option><option>tuxedo</option><option>patched</option><option>uniform</option></select></label>
       <div class="row wide"><label>Coat<input id="coat" type="color" value="#d48748"></label><label>Soft areas<input id="accent" type="color" value="#f0c895"></label></div>
       <label>Eyes<input id="eye" type="color" value="#a9bf6b"></label>
@@ -21,15 +21,15 @@
       <div class="hint wide">The five cats share a palette but not geometry. Change the family seed and their ears, face, fluff, torso, legs and tail shift deterministically.</div>
     </section>
     <section class="stage">
-      <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">LIVE PROCEDURAL ART</span></div>
+      <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">SHIPPED ART PIPELINE</span></div>
       <div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div>
-      <div class="legend"><span><i class="dot"></i>pixel-painted raster</span><span><i class="dot"></i>stable anatomy per ID</span><span><i class="dot"></i>behavior-driven pose</span><span><i class="dot"></i>no sprite atlas</span></div>
+      <div class="legend"><span><i class="dot"></i>low-density pixel raster</span><span><i class="dot"></i>stable anatomy per ID</span><span><i class="dot"></i>behavior-driven pose</span><span><i class="dot"></i>no sprite atlas</span></div>
     </section>
   </div>
-  <section class="moments"><div class="moments-head"><div><h2>Cat moments board</h2><p>The poses that matter when the cat is simply living on your desktop.</p></div><span class="pill">REGRESSION STRIP</span></div><div class="moments-wrap"><canvas id="moments" width="1160" height="310"></canvas></div><div class="footnote">idle · loaf · sleep · groom · stalk · pounce · peek</div></section>
+  <section class="moments"><div class="moments-head"><div><h2>Cat moments board</h2><p>The small poses that make the cat feel like it is simply living on your desktop.</p></div><span class="pill">REGRESSION STRIP</span></div><div class="moments-wrap"><canvas id="moments" width="1160" height="310"></canvas></div><div class="footnote">idle · loaf · sleep · groom · sniff · stretch · stalk · pounce · peek</div></section>
 </main>
 <script type="module">
-  import { drawIllustratedCat } from "./src/app/illustratedCat.js";
+  import { drawIllustratedCat } from "./src/app/cozyCatRaster.js";
   const canvas=document.querySelector("#preview"),c=canvas.getContext("2d"),momentCanvas=document.querySelector("#moments"),mc=momentCanvas.getContext("2d");
   const controls={behavior:document.querySelector("#behavior"),markings:document.querySelector("#markings"),coat:document.querySelector("#coat"),accent:document.querySelector("#accent"),eye:document.querySelector("#eye"),seed:document.querySelector("#seed"),scale:document.querySelector("#scale"),mood:document.querySelector("#mood")},scaleValue=document.querySelector("#scaleValue"),moodValue=document.querySelector("#moodValue");
 
@@ -43,8 +43,8 @@
   }
 
   function poseFor(kind,t,i,mood){
-    const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle",feeding=kind==="eat"||kind==="drink";
-    return{lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",crouch:kind==="stalk"?.86:kind==="pounce"?.95:feeding?.32:0,bow:kind==="stretch"?1:0,arch:kind==="startle"?1:0,headDip:feeding?.85:0,headBob:feeding?Math.sin(t/170)*2:kind==="groom"?Math.sin(t/150)*2.5:0,eyeOpen:kind==="sleep"?0:kind==="groom"?.72:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,tailLift:kind==="stalk"?-.42:happy?.85:stressed?-.75:.25,tailWagAmp:kind==="stalk"?1.25:happy?6:3,tailFast:kind==="stalk"?false:kind==="run"||happy,gait:phase,legAmp:moving?(fast?4.2:3):0,bounce:moving?Math.abs(Math.sin(phase))*(fast?2.3:1.4):0,puff:kind==="startle",carry:false,pawReach:0,grooming:kind==="groom",licking:kind==="groom"||kind==="drink",pouncing:kind==="pounce",loaf:kind==="loaf"};
+    const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle",feeding=kind==="eat"||kind==="drink",investigating=kind==="investigate",stretching=kind==="stretch",quiet=kind==="stalk"||investigating||stretching;
+    return{lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",crouch:kind==="stalk"?.86:kind==="pounce"?.95:feeding?.32:investigating?.38:stretching?.12:0,bow:stretching?1:0,arch:kind==="startle"?1:0,headDip:feeding?.85:investigating?.72:stretching?.12:0,headBob:feeding?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:kind==="groom"?Math.sin(t/150)*2.5:0,eyeOpen:kind==="sleep"?0:kind==="groom"?.72:stretching?.78:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,tailLift:kind==="stalk"?-.42:investigating?.12:stretching?.58:happy?.85:stressed?-.75:.25,tailWagAmp:kind==="stalk"?1.25:investigating?1.4:stretching?2:happy?6:3,tailFast:quiet?false:kind==="run"||happy,gait:phase,legAmp:moving?(fast?4.2:3):0,bounce:moving?Math.abs(Math.sin(phase))*(fast?2.3:1.4):0,puff:kind==="startle",carry:false,pawReach:0,grooming:kind==="groom",licking:kind==="groom"||kind==="drink",pouncing:kind==="pounce",loaf:kind==="loaf"};
   }
   function stateFor(id,mood,kind){return{id,name:id,species:"cat",behavior:kind==="loaf"?"idle":kind,behaviorSinceMs:0,body:{position:{x:0,y:0},velocity:{x:kind==="run"?160:kind==="walk"?65:0,y:0},facing:1,grounded:!(["pounce","hang","climb"].includes(kind))},affect:{valence:mood,arousal:kind==="loaf"?.12:Math.max(.15,Math.abs(mood)),stress:Math.max(0,-mood)},drives:{fatigue:.2,play:.4}};}
   function app(){return{coat:controls.coat.value,accent:controls.accent.value,eye:controls.eye.value,scale:1,markings:controls.markings.value};}
@@ -59,14 +59,14 @@
     c.textAlign="left";c.fillStyle="rgba(78,58,43,.52)";c.font="11px ui-monospace,monospace";c.fillText(`${kind}  ·  ${appearance.markings}  ·  ${controls.seed.value||"cat"}`,18,494);
   }
 
-  const MOMENTS=["idle","loaf","sleep","groom","stalk","pounce","peek"];
+  const MOMENTS=["idle","loaf","sleep","groom","investigate","stretch","stalk","pounce","peek"];
   function renderMoments(t){
     drawRoom(mc,momentCanvas.width,momentCanvas.height,1);const appearance=app(),cell=momentCanvas.width/MOMENTS.length;
     mc.fillStyle="rgba(92,65,46,.07)";for(let i=1;i<MOMENTS.length;i++)mc.fillRect(Math.round(i*cell),26,1,momentCanvas.height-52);
     MOMENTS.forEach((kind,i)=>{
       const id=`${controls.seed.value||"cat"}-moment-${i+1}`,p=stateFor(id,.34,kind),x=cell*(i+.5),floor=213;
-      mc.save();mc.translate(x,floor);mc.scale(1.78,1.78);drawIllustratedCat(mc,p,appearance,poseFor(kind,t,i,.34),t);mc.restore();
-      mc.fillStyle="#675341";mc.font="600 10px ui-monospace,monospace";mc.textAlign="center";mc.fillText(kind.toUpperCase(),x,274);
+      mc.save();mc.translate(x,floor);mc.scale(1.58,1.58);drawIllustratedCat(mc,p,appearance,poseFor(kind,t,i,.34),t);mc.restore();
+      mc.fillStyle="#675341";mc.font="600 9px ui-monospace,monospace";mc.textAlign="center";mc.fillText((kind==="investigate"?"sniff":kind).toUpperCase(),x,274);
     });mc.textAlign="left";
   }
 
