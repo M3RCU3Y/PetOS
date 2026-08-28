@@ -44,10 +44,11 @@
 
   function poseFor(kind,t,i,mood){
     const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle";
+    const feeding=kind==="eat"||kind==="drink";
     return{
       lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",
       crouch:kind==="stalk"?.86:kind==="pounce"?.95:0,bow:kind==="stretch"?1:0,arch:kind==="startle"?1:0,
-      headDip:kind==="eat"||kind==="drink"?.85:0,headBob:kind==="eat"||kind==="drink"?Math.sin(t/170)*2:kind==="groom"?Math.sin(t/150)*2.5:0,
+      headDip:feeding?.85:0,headBob:feeding?Math.sin(t/170)*2:kind==="groom"?Math.sin(t/150)*2.5:0,
       eyeOpen:kind==="sleep"?0:kind==="groom"?.72:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,
       earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,
       tailLift:kind==="stalk"?-.35:happy?.85:stressed?-.75:.25,tailWagAmp:happy?6:3,tailFast:kind==="run"||happy,
