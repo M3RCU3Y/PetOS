@@ -12,21 +12,24 @@ function line(c:CanvasRenderingContext2D,color:string,width:number,draw:()=>void
 
 type Anchor={x:number;y:number};
 function sleepCurl(p:PetState):boolean{return hash01(`${p.id}:sleep-pose`)>.42;}
-function standingHead(pose:IllustratedCatPose):Anchor{const bodyY=-27+pose.crouch*7-pose.bounce;return{x:22+pose.crouch*5+pose.headDip*7,y:bodyY+1.8+pose.crouch*5+pose.headDip*10+pose.headBob};}
+function headScale(p:PetState):number{return 1.035+hash01(`${p.id}:head`)*.085;}
+function bodyLength(p:PetState):number{return .91+hash01(`${p.id}:length`)*.095;}
+function standingHead(p:PetState,pose:IllustratedCatPose):Anchor{const bodyY=-27+pose.crouch*7-pose.bounce;return{x:22+(bodyLength(p)-1)*14+pose.crouch*5+pose.headDip*7,y:bodyY+2+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28};}
 function headAnchor(p:PetState,pose:IllustratedCatPose,t:number):Anchor|null{
   if(pose.peeking)return{x:0,y:-10};
   if(pose.hanging)return{x:1,y:9};
   if(pose.pouncing&&!p.body.grounded)return null;
   if(pose.loaf)return{x:15,y:-20+Math.sin(t/1700)*.3};
-  if(pose.lying)return sleepCurl(p)?{x:12,y:-24}:{x:17,y:-13};
-  if(pose.sitting)return{x:7,y:-42+pose.headBob};
+  if(pose.lying)return sleepCurl(p)?{x:12,y:-23}:{x:17,y:-13};
+  if(pose.sitting)return{x:7,y:-38.5+pose.headBob};
   if(pose.vertical)return null;
-  return standingHead(pose);
+  return standingHead(p,pose);
 }
 
 function faceFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
   const anchor=headAnchor(p,pose,t);if(!anchor)return;
-  const {x,y}=anchor,pattern=a.markings??"tabby",deep=shade(a.coat,.47),variant=hash01(`${p.id}:face-mark`);
+  const {x,y}=anchor,pattern=a.markings??"tabby",deep=shade(a.coat,.47),variant=hash01(`${p.id}:face-mark`),scale=headScale(p);
+  c.save();c.translate(x,y);c.scale(scale,scale);c.translate(-x,-y);
   if(pattern==="tabby"){
     line(c,rgba(deep,.7),.7,()=>{c.moveTo(x-4.8,y-7.4);c.lineTo(x-3.2,y-5.7);c.lineTo(x-1.8,y-7.2);c.lineTo(x-.2,y-5.5);c.lineTo(x+1.4,y-7);});
     line(c,rgba(deep,.5),.65,()=>{c.moveTo(x-9.1,y+1.2);c.lineTo(x-6.6,y+2.15);c.moveTo(x-8.7,y+3.2);c.lineTo(x-6.2,y+3.55);});
@@ -36,8 +39,9 @@ function faceFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:I
   }else if(pattern==="patched"){
     const side=variant>.5?1:-1;ellipse(c,x+side*5.7,y-5.3,2.45,2.8,rgba(a.accent,.38),side*.2);
   }
-  ellipse(c,x+9.15,y+2.25,.48,.32,"rgba(255,228,218,.62)");
-  ellipse(c,x+8.25,y+6.05,.45,.22,"rgba(255,238,229,.27)");
+  ellipse(c,x+8.85,y+2.3,.44,.3,"rgba(255,228,218,.58)");
+  ellipse(c,x+8.05,y+5.9,.4,.2,"rgba(255,238,229,.24)");
+  c.restore();
 }
 
 function bodyFinish(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose):void{
