@@ -10,6 +10,7 @@ export { resolveSheetAnimation, preloadSheet, buildPreviewState } from "./legacy
 export type { RenderScene } from "./legacyRenderer.js";
 
 const TAU=Math.PI*2;
+const ILLUSTRATED_CAT_SCALE=1.08;
 function hash01(id:string):number{let h=2166136261;for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function clamp(v:number,a=0,b=1):number{return Math.max(a,Math.min(b,v));}
 function smoothstep(v:number):number{const q=clamp(v);return q*q*(3-2*q);}
@@ -50,10 +51,8 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
   let pupilX=0,pupilY=0;
   if(!sleeping){
     if(pleased){pupilX=.18;pupilY=.08;}
-    else if(b==="idle"||b==="sit"||b==="perch"){
-      pupilX=Math.sin(t/2450+phase)*.54;
-      pupilY=Math.sin(t/3300+phase*2)*.16;
-    }else if(cursor&&b!=="walk"){
+    else if(b==="idle"||b==="sit"||b==="perch"){pupilX=Math.sin(t/2450+phase)*.54;pupilY=Math.sin(t/3300+phase*2)*.16;}
+    else if(cursor&&b!=="walk"){
       const dx=cursor.x-p.body.position.x,dy=cursor.y-(p.body.position.y-SPECIES.cat.movement.bodyHeight);
       if(Math.hypot(dx,dy)<340){pupilX=clamp(dx/240,-1,1);pupilY=clamp(dy/240,-1,1);}
     }
@@ -91,10 +90,13 @@ function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearan
   if(pose.lying)sy*=1+Math.sin(t/620)*.018;
   if(p.behavior==="stretch"){sx*=1.08;sy*=.94;}
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
-  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*art.scale,sy*art.scale);drawIllustratedCat(c,p,art,pose,t);c.restore();
+  const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
+  c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t);c.restore();
 }
 
-function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{if(!p.body.grounded)return;c.save();c.fillStyle="rgba(0,0,0,.16)";c.beginPath();c.ellipse(pos.x,pos.y+1,25*a.scale,3.8*a.scale,0,0,TAU);c.fill();c.restore();}
+function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{
+  if(!p.body.grounded)return;const s=a.scale*ILLUSTRATED_CAT_SCALE;c.save();c.fillStyle="rgba(0,0,0,.16)";c.beginPath();c.ellipse(pos.x,pos.y+1,25*s,3.8*s,0,0,TAU);c.fill();c.restore();
+}
 function drawPixelHeart(c:CanvasRenderingContext2D,x:number,y:number,size:number,alpha:number):void{
   const s=Math.max(1,Math.round(size));c.save();c.globalAlpha=alpha;c.fillStyle="#ef8f8f";
   const blocks:[[number,number],[number,number],[number,number],[number,number],[number,number],[number,number],[number,number]]=[[0,0],[2,0],[-1,1],[1,1],[3,1],[0,2],[2,2]];
@@ -137,11 +139,20 @@ export class PixelRenderer extends LegacyPixelRenderer{
     for(const object of habitat)drawCozyObjectFront(c,object,{x:object.position.x+ox,y:object.position.y+oy},t);
   }
   override hitTest(pet:PetState,point:Vec2,bounds:Rect):boolean{
-    const a=this.illustratedAppearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};if(!catUsesIllustratedPath(pet,a))return this.legacyLayer?.hitTest(pet,point,bounds)??super.hitTest(pet,point,bounds);const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y,s=a.scale;
-    if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;if(pet.behavior==="pounce"&&!pet.body.grounded)return point.x>=x-52*s&&point.x<=x+55*s&&point.y>=y-48*s&&point.y<=y+15*s;return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
+    const a=this.illustratedAppearances.get(pet.id)??{coat:"#d77b36",accent:"#f2bf7d",eye:"#d9ef73",scale:1};
+    if(!catUsesIllustratedPath(pet,a))return this.legacyLayer?.hitTest(pet,point,bounds)??super.hitTest(pet,point,bounds);
+    const x=pet.body.position.x-bounds.x,y=pet.body.position.y-bounds.y,s=a.scale*ILLUSTRATED_CAT_SCALE;
+    if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;
+    if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;
+    if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;
+    if(pet.behavior==="pounce"&&!pet.body.grounded)return point.x>=x-52*s&&point.x<=x+55*s&&point.y>=y-48*s&&point.y<=y+15*s;
+    return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
   }
 }
 
 export function renderPetPreview(canvas:HTMLCanvasElement,species:Species,appearance:PetAppearance,behavior:string,t:number):void{
-  if(species!=="cat"||appearance.sheet){legacyRenderPetPreview(canvas,species,appearance,behavior,t);return;}const c=canvas.getContext("2d");if(!c)return;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;const groundY=canvas.height*.9,state=legacyBuildPreviewState(species,behavior),pos={x:canvas.width/2,y:groundY};const art=cozyCatAppearance(appearance);drawCatShadow(c,state,art,pos);paintIllustratedCat(c,state,art,pos,t);
+  if(species!=="cat"||appearance.sheet){legacyRenderPetPreview(canvas,species,appearance,behavior,t);return;}
+  const c=canvas.getContext("2d");if(!c)return;c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;
+  const groundY=canvas.height*.9,state=legacyBuildPreviewState(species,behavior),pos={x:canvas.width/2,y:groundY},art=cozyCatAppearance(appearance);
+  drawCatShadow(c,state,art,pos);paintIllustratedCat(c,state,art,pos,t);
 }
