@@ -1,7 +1,7 @@
 import { SPECIES } from "../core/species.js";
 import { isAdoptionAnniversary } from "../core/pet.js";
 import type { PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types.js";
-import { drawIllustratedCat, type IllustratedCatPose } from "./illustratedCat.js";
+import { drawIllustratedCat, type IllustratedCatPose } from "./cozyCatRaster.js";
 import { PixelRenderer as LegacyPixelRenderer, buildPreviewState as legacyBuildPreviewState, renderPetPreview as legacyRenderPetPreview } from "./legacyRenderer.js";
 import type { RenderScene } from "./legacyRenderer.js";
 
@@ -11,24 +11,25 @@ export type { RenderScene } from "./legacyRenderer.js";
 const TAU=Math.PI*2;
 function hash01(id:string):number{let h=2166136261;for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function catUsesIllustratedPath(pet:PetState,appearance:PetAppearance):boolean{return pet.species==="cat"&&!appearance.sheet;}
-function cozyCatAppearance(a:PetAppearance):PetAppearance{return a.markings? a:{...a,markings:"tabby"};}
+function cozyCatAppearance(a:PetAppearance):PetAppearance{return a.markings?a:{...a,markings:"tabby"};}
 
 function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMotion=false):IllustratedCatPose{
-  const b=p.behavior,speed=Math.abs(p.body.velocity.x),fast=speed>110,walking=speed>8&&!fast,airborne=!p.body.grounded,sleeping=b==="sleep"||b==="cuddle",feeding=b==="eat"||b==="drink",stalking=b==="stalk",motionScale=reducedMotion?.4:1;
-  let eyeOpen=sleeping?0:((t/3400+phase/997)%1)>.96?.08:1;if(b==="startle")eyeOpen=1;if(b==="hide")eyeOpen=Math.min(eyeOpen,.55);
+  const b=p.behavior,speed=Math.abs(p.body.velocity.x),fast=speed>110,walking=speed>8&&!fast,airborne=!p.body.grounded,sleeping=b==="sleep"||b==="cuddle",feeding=b==="eat"||b==="drink",stalking=b==="stalk",investigating=b==="investigate",stretching=b==="stretch",motionScale=reducedMotion?.4:1;
+  let eyeOpen=sleeping?0:((t/3400+phase/997)%1)>.96?.08:1;if(b==="startle")eyeOpen=1;if(b==="hide")eyeOpen=Math.min(eyeOpen,.55);if(stretching)eyeOpen=Math.min(eyeOpen,.78);
   let pupilX=0,pupilY=0;
   if(!sleeping){
     if(b==="idle"||b==="sit"||b==="perch"){pupilX=Math.sin(t/2300+phase)*.6;pupilY=Math.sin(t/3100+phase*2)*.2;}
     else if(cursor&&b!=="walk"){const dx=cursor.x-p.body.position.x,dy=cursor.y-(p.body.position.y-SPECIES.cat.movement.bodyHeight);if(Math.hypot(dx,dy)<340){pupilX=Math.max(-1,Math.min(1,dx/240));pupilY=Math.max(-1,Math.min(1,dy/240));}}
   }
   const happy=["play_pet","play_fight","play_toy","greet_pet","zoomies","seek_user","carry_toy"].includes(b),scared=b==="startle"||p.affect.stress>.6;
+  const quietTail=stalking||investigating||stretching;
   return{
     lying:sleeping,sitting:b==="sit"||b==="perch"||b==="groom",vertical:b==="climb",hanging:b==="hang",peeking:b==="peek",
-    crouch:stalking?.85:b==="hide"?.9:feeding?.32:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
+    crouch:stalking?.85:b==="hide"?.9:feeding?.32:investigating?.38:stretching?.12:(b==="pounce"&&p.body.grounded)?1:0,
     bow:["stretch","play_pet","play_fight"].includes(b)?1:b==="greet_pet"?.55:0,arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
-    headDip:feeding?.9:(b==="investigate"&&p.body.grounded?.5:0),headBob:feeding?Math.sin(t/170)*2:b==="groom"?Math.sin(t/150)*2.5:0,
+    headDip:feeding?.9:investigating?.72:stretching?.12:0,headBob:feeding?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:b==="groom"?Math.sin(t/150)*2.5:0,
     eyeOpen,pupilX,pupilY,earBack:scared?1:(p.affect.stress>.35?.5:0),earTwitch:((t/2900+phase/777)%1)<.05?2:0,
-    tailLift:stalking?-.42:happy?1:scared?-1:.3,tailWagAmp:stalking?1.25:happy?8:p.affect.valence>.35?5:3,tailFast:stalking?false:happy||p.affect.arousal>.7,
+    tailLift:stalking?-.42:investigating?.12:stretching?.58:happy?1:scared?-1:.3,tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:happy?8:p.affect.valence>.35?5:3,tailFast:quietTail?false:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:140),legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0)*motionScale,
     puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
     grooming:b==="groom",licking:b==="groom"||b==="drink",pouncing:b==="pounce",loaf:b==="idle"&&p.affect.arousal<.28&&p.affect.stress<.2
@@ -38,7 +39,7 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
 function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,cursor?:Vec2,reducedMotion=false):void{
   const pose=computeCatPose(p,t,hash01(p.id)*10000,cursor,reducedMotion);if(isAdoptionAnniversary(p,Date.now()))pose.party=true;
   const art=cozyCatAppearance(a);
-  let sy=1,sx=1;if(!p.body.grounded){sy=Math.min(1.15,1+Math.abs(p.body.velocity.y)*.00042);sx=Math.pow(sy,-.68);}if(pose.lying)sy*=1+Math.sin(t/620)*.018;
+  let sy=1,sx=1;if(!p.body.grounded){sy=Math.min(1.15,1+Math.abs(p.body.velocity.y)*.00042);sx=Math.pow(sy,-.68);}if(pose.lying)sy*=1+Math.sin(t/620)*.018;if(p.behavior==="stretch"){sx*=1.08;sy*=.94;}
   c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(p.body.facing*sx*art.scale,sy*art.scale);drawIllustratedCat(c,p,art,pose,t);c.restore();
 }
 
