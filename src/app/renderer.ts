@@ -30,6 +30,8 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
   const walking=speed>8&&!fast;
   const airborne=!p.body.grounded;
   const sleeping=b==="sleep"||b==="cuddle";
+  const feeding=b==="eat"||b==="drink";
+  const stalking=b==="stalk";
   const motionScale=reducedMotion?.4:1;
 
   let eyeOpen=sleeping?0:((t/3400+phase/997)%1)>.96?.08:1;
@@ -59,17 +61,17 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     vertical:b==="climb",
     hanging:b==="hang",
     peeking:b==="peek",
-    crouch:b==="stalk"?.85:b==="hide"?.9:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
+    crouch:stalking?.85:b==="hide"?.9:feeding?.32:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
     bow:["stretch","play_pet","play_fight"].includes(b)?1:b==="greet_pet"?.55:0,
     arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
-    headDip:(b==="eat"||b==="drink")?.9:(b==="investigate"&&p.body.grounded?.5:0),
-    headBob:(b==="eat"||b==="drink")?Math.sin(t/170)*2:b==="groom"?Math.sin(t/150)*2.5:0,
+    headDip:feeding?.9:(b==="investigate"&&p.body.grounded?.5:0),
+    headBob:feeding?Math.sin(t/170)*2:b==="groom"?Math.sin(t/150)*2.5:0,
     eyeOpen,pupilX,pupilY,
     earBack:scared?1:(p.affect.stress>.35?.5:0),
     earTwitch:((t/2900+phase/777)%1)<.05?2:0,
-    tailLift:b==="stalk"?-.35:happy?1:scared?-1:.3,
-    tailWagAmp:happy?8:p.affect.valence>.35?5:3,
-    tailFast:happy||p.affect.arousal>.7,
+    tailLift:stalking?-.42:happy?1:scared?-1:.3,
+    tailWagAmp:stalking?1.25:happy?8:p.affect.valence>.35?5:3,
+    tailFast:stalking?false:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:140),
     legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,
     bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0)*motionScale,
@@ -77,7 +79,8 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     carry:b==="carry_toy",
     pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
     grooming:b==="groom",
-    licking:b==="groom"||b==="drink"
+    licking:b==="groom"||b==="drink",
+    pouncing:b==="pounce"
   };
 }
 
@@ -185,6 +188,7 @@ export class PixelRenderer extends LegacyPixelRenderer{
     if(pet.behavior==="hang")return point.x>=x-28*s&&point.x<=x+28*s&&point.y>=y-28*s&&point.y<=y+58*s;
     if(pet.behavior==="climb")return point.x>=x-48*s&&point.x<=x+32*s&&point.y>=y-42*s&&point.y<=y+38*s;
     if(pet.behavior==="peek")return point.x>=x-30*s&&point.x<=x+30*s&&point.y>=y-46*s&&point.y<=y+7*s;
+    if(pet.behavior==="pounce"&&!pet.body.grounded)return point.x>=x-52*s&&point.x<=x+55*s&&point.y>=y-48*s&&point.y<=y+15*s;
     return point.x>=x-35*s&&point.x<=x+39*s&&point.y>=y-64*s&&point.y<=y+5*s;
   }
 }
