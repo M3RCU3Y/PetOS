@@ -1,75 +1,23 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PetOS · Cat Lab</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PetOS · Cat Lab</title>
   <style>
-    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#111319;color:#f5f2eb}
-    *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0%,#252032 0,#15171d 42%,#0d0f13 100%)}
-    main{width:min(1180px,calc(100% - 32px));margin:24px auto 48px}.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#b7a8d9}h1{margin:.3rem 0 .25rem;font-size:clamp(28px,5vw,54px);line-height:.95}p{color:#aeb3c1;max-width:760px}
-    .shell{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-top:24px}.panel,.stage{background:rgba(19,21,28,.86);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:0 22px 60px rgba(0,0,0,.32);backdrop-filter:blur(18px)}.panel{padding:18px}.stage{padding:16px;min-width:0}
-    label{display:grid;gap:7px;margin-bottom:14px;font-size:12px;color:#c8cbd4}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,input{width:100%;background:#0d0f14;color:#f6f3ed;border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:10px}input[type=color]{padding:3px;height:42px}.hint{font-size:11px;line-height:1.45;color:#818897;margin-top:12px}.stage-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 6px 12px}.pill{font:600 11px ui-monospace,monospace;background:#232633;padding:6px 9px;border-radius:999px;color:#cbd2e5}.canvas-wrap{overflow:hidden;border-radius:16px;background:linear-gradient(#ede6db,#ded7cd);position:relative}.canvas-wrap:after{content:"";position:absolute;left:0;right:0;bottom:62px;height:1px;background:rgba(68,58,48,.18);pointer-events:none}canvas{width:100%;height:auto;display:block}.legend{display:flex;gap:12px;flex-wrap:wrap;padding:12px 4px 0;font-size:11px;color:#8e95a4}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#9e8fc8;margin-right:4px}
-    @media(max-width:800px){.shell{grid-template-columns:1fr}.panel{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.panel .wide{grid-column:1/-1}}
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#111319;color:#f5f2eb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0%,#252032 0,#15171d 42%,#0d0f13 100%)}main{width:min(1180px,calc(100% - 32px));margin:24px auto 48px}.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#b7a8d9}h1{margin:.3rem 0 .25rem;font-size:clamp(28px,5vw,54px);line-height:.95}p{color:#aeb3c1;max-width:760px}.shell{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-top:24px}.panel,.stage{background:rgba(19,21,28,.86);border:1px solid rgba(255,255,255,.09);border-radius:22px;box-shadow:0 22px 60px rgba(0,0,0,.32);backdrop-filter:blur(18px)}.panel{padding:18px}.stage{padding:16px;min-width:0}label{display:grid;gap:7px;margin-bottom:14px;font-size:12px;color:#c8cbd4}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,input{width:100%;background:#0d0f14;color:#f6f3ed;border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:10px}input[type=color]{padding:3px;height:42px}.hint{font-size:11px;line-height:1.45;color:#818897;margin-top:12px}.stage-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 6px 12px}.pill{font:600 11px ui-monospace,monospace;background:#232633;padding:6px 9px;border-radius:999px;color:#cbd2e5}.canvas-wrap{overflow:hidden;border-radius:16px;background:linear-gradient(#ede6db,#ded7cd);position:relative}.canvas-wrap:after{content:"";position:absolute;left:0;right:0;bottom:62px;height:1px;background:rgba(68,58,48,.18);pointer-events:none}canvas{width:100%;height:auto;display:block}.legend{display:flex;gap:12px;flex-wrap:wrap;padding:12px 4px 0;font-size:11px;color:#8e95a4}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#9e8fc8;margin-right:4px}@media(max-width:800px){.shell{grid-template-columns:1fr}.panel{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.panel .wide{grid-column:1/-1}}
   </style>
 </head>
-<body>
-<main>
-  <div class="eyebrow">PETOS · VISUAL DEVELOPMENT</div>
-  <h1>Procedural Cat Lab</h1>
-  <p>Tune the code-drawn cat without touching the simulation. Every preview below uses the real illustrated renderer and a different stable pet ID.</p>
-  <div class="shell">
-    <section class="panel">
-      <label>Pose<select id="behavior"><option>idle</option><option>walk</option><option>run</option><option>sit</option><option>sleep</option><option>stalk</option><option>pounce</option><option>stretch</option><option>startle</option><option>groom</option><option>eat</option><option>drink</option><option>climb</option><option>hang</option><option>peek</option></select></label>
-      <label>Markings<select id="markings"><option>tabby</option><option>tuxedo</option><option>patched</option><option>uniform</option></select></label>
-      <div class="row wide"><label>Coat<input id="coat" type="color" value="#d77b36"></label><label>Accent<input id="accent" type="color" value="#f2bf7d"></label></div>
-      <label>Eyes<input id="eye" type="color" value="#a7c96b"></label>
-      <label class="wide">Seed prefix<input id="seed" value="cat-lab" maxlength="32"></label>
-      <label class="wide">Scale <span id="scaleValue">2.15×</span><input id="scale" type="range" min="1.3" max="3.2" step="0.05" value="2.15"></label>
-      <label class="wide">Mood <span id="moodValue">content</span><input id="mood" type="range" min="-1" max="1" step="0.05" value="0.35"></label>
-      <div class="hint wide">Change the seed prefix to generate a fresh family of body shapes. Morphology is deterministic, so the same pet ID always looks the same after restart.</div>
-    </section>
-    <section class="stage">
-      <div class="stage-head"><strong>Five IDs · one renderer</strong><span class="pill">live</span></div>
-      <div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div>
-      <div class="legend"><span><i class="dot"></i>shape from code</span><span><i class="dot"></i>no sprite sheet</span><span><i class="dot"></i>stable per pet ID</span></div>
-    </section>
-  </div>
+<body><main>
+  <div class="eyebrow">PETOS · VISUAL DEVELOPMENT</div><h1>Procedural Cat Lab</h1><p>Tune the code-drawn cat without touching the simulation. Every preview below uses the real illustrated renderer and a different stable pet ID.</p>
+  <div class="shell"><section class="panel">
+    <label>Pose<select id="behavior"><option>idle</option><option>loaf</option><option>walk</option><option>run</option><option>sit</option><option>sleep</option><option>stalk</option><option>pounce</option><option>stretch</option><option>startle</option><option>groom</option><option>eat</option><option>drink</option><option>climb</option><option>hang</option><option>peek</option></select></label>
+    <label>Markings<select id="markings"><option>tabby</option><option>tuxedo</option><option>patched</option><option>uniform</option></select></label>
+    <div class="row wide"><label>Coat<input id="coat" type="color" value="#d77b36"></label><label>Accent<input id="accent" type="color" value="#f2bf7d"></label></div><label>Eyes<input id="eye" type="color" value="#a7c96b"></label><label class="wide">Seed prefix<input id="seed" value="cat-lab" maxlength="32"></label><label class="wide">Scale <span id="scaleValue">2.15×</span><input id="scale" type="range" min="1.3" max="3.2" step="0.05" value="2.15"></label><label class="wide">Mood <span id="moodValue">content</span><input id="mood" type="range" min="-1" max="1" step="0.05" value="0.35"></label><div class="hint wide">Change the seed prefix to generate a fresh family of body shapes. Morphology is deterministic, so the same pet ID always looks the same after restart.</div>
+  </section><section class="stage"><div class="stage-head"><strong>Five IDs · one renderer</strong><span class="pill">live</span></div><div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div><div class="legend"><span><i class="dot"></i>shape from code</span><span><i class="dot"></i>no sprite sheet</span><span><i class="dot"></i>stable per pet ID</span></div></section></div>
 </main>
 <script type="module">
   import { drawIllustratedCat } from "./src/app/illustratedCat.js";
-  const canvas=document.querySelector("#preview"),c=canvas.getContext("2d");
-  const controls={behavior:document.querySelector("#behavior"),markings:document.querySelector("#markings"),coat:document.querySelector("#coat"),accent:document.querySelector("#accent"),eye:document.querySelector("#eye"),seed:document.querySelector("#seed"),scale:document.querySelector("#scale"),mood:document.querySelector("#mood")};
-  const scaleValue=document.querySelector("#scaleValue"),moodValue=document.querySelector("#moodValue");
-
-  function poseFor(kind,t,i,mood){
-    const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle";
-    const feeding=kind==="eat"||kind==="drink";
-    return{
-      lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",
-      crouch:kind==="stalk"?.86:kind==="pounce"?.95:0,bow:kind==="stretch"?1:0,arch:kind==="startle"?1:0,
-      headDip:feeding?.85:0,headBob:feeding?Math.sin(t/170)*2:kind==="groom"?Math.sin(t/150)*2.5:0,
-      eyeOpen:kind==="sleep"?0:kind==="groom"?.72:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,
-      earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,
-      tailLift:kind==="stalk"?-.35:happy?.85:stressed?-.75:.25,tailWagAmp:happy?6:3,tailFast:kind==="run"||happy,
-      gait:phase,legAmp:moving?(fast?4.2:3):0,bounce:moving?Math.abs(Math.sin(phase))*(fast?2.3:1.4):0,
-      puff:kind==="startle",carry:false,pawReach:0,grooming:kind==="groom",licking:kind==="groom"||kind==="drink"
-    };
-  }
-  function stateFor(id,mood,kind){return{id,name:id,species:"cat",behavior:kind,behaviorSinceMs:0,body:{position:{x:0,y:0},velocity:{x:kind==="run"?160:kind==="walk"?65:0,y:0},facing:1,grounded:!(["pounce","hang","climb"].includes(kind))},affect:{valence:mood,arousal:Math.max(.15,Math.abs(mood)),stress:Math.max(0,-mood)},drives:{fatigue:.2,play:.4}};}
-  function render(t){
-    const kind=controls.behavior.value,mood=Number(controls.mood.value),scale=Number(controls.scale.value);
-    scaleValue.textContent=`${scale.toFixed(2)}×`;moodValue.textContent=mood>.45?"delighted":mood>.1?"content":mood<-.45?"stressed":mood<-.1?"wary":"neutral";
-    const app={coat:controls.coat.value,accent:controls.accent.value,eye:controls.eye.value,scale:1,markings:controls.markings.value};
-    c.clearRect(0,0,canvas.width,canvas.height);const xs=[100,280,460,640,820],floor=330;
-    for(let i=0;i<5;i++){
-      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind);
-      c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawIllustratedCat(c,p,app,poseFor(kind,t,i,mood),t);c.restore();
-      c.fillStyle="#554b43";c.font="600 13px ui-monospace,monospace";c.textAlign="center";c.fillText(`#${i+1}`,xs[i],floor+42);
-    }
-    c.textAlign="left";c.fillStyle="rgba(70,62,55,.6)";c.font="12px ui-monospace,monospace";c.fillText(`${kind} · ${app.markings} · ${controls.seed.value||"cat"}`,18,494);requestAnimationFrame(render);
-  }
-  requestAnimationFrame(render);
-</script>
-</body>
-</html>
+  const canvas=document.querySelector("#preview"),c=canvas.getContext("2d"),controls={behavior:document.querySelector("#behavior"),markings:document.querySelector("#markings"),coat:document.querySelector("#coat"),accent:document.querySelector("#accent"),eye:document.querySelector("#eye"),seed:document.querySelector("#seed"),scale:document.querySelector("#scale"),mood:document.querySelector("#mood")},scaleValue=document.querySelector("#scaleValue"),moodValue=document.querySelector("#moodValue");
+  function poseFor(kind,t,i,mood){const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle",feeding=kind==="eat"||kind==="drink";return{lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",crouch:kind==="stalk"?.86:kind==="pounce"?.95:feeding?.32:0,bow:kind==="stretch"?1:0,arch:kind==="startle"?1:0,headDip:feeding?.85:0,headBob:feeding?Math.sin(t/170)*2:kind==="groom"?Math.sin(t/150)*2.5:0,eyeOpen:kind==="sleep"?0:kind==="groom"?.72:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,tailLift:kind==="stalk"?-.42:happy?.85:stressed?-.75:.25,tailWagAmp:kind==="stalk"?1.25:happy?6:3,tailFast:kind==="stalk"?false:kind==="run"||happy,gait:phase,legAmp:moving?(fast?4.2:3):0,bounce:moving?Math.abs(Math.sin(phase))*(fast?2.3:1.4):0,puff:kind==="startle",carry:false,pawReach:0,grooming:kind==="groom",licking:kind==="groom"||kind==="drink",pouncing:kind==="pounce",loaf:kind==="loaf"};}
+  function stateFor(id,mood,kind){return{id,name:id,species:"cat",behavior:kind==="loaf"?"idle":kind,behaviorSinceMs:0,body:{position:{x:0,y:0},velocity:{x:kind==="run"?160:kind==="walk"?65:0,y:0},facing:1,grounded:!(["pounce","hang","climb"].includes(kind))},affect:{valence:mood,arousal:kind==="loaf"?.12:Math.max(.15,Math.abs(mood)),stress:Math.max(0,-mood)},drives:{fatigue:.2,play:.4}};}
+  function render(t){const kind=controls.behavior.value,mood=Number(controls.mood.value),scale=Number(controls.scale.value);scaleValue.textContent=`${scale.toFixed(2)}×`;moodValue.textContent=mood>.45?"delighted":mood>.1?"content":mood<-.45?"stressed":mood<-.1?"wary":"neutral";const app={coat:controls.coat.value,accent:controls.accent.value,eye:controls.eye.value,scale:1,markings:controls.markings.value};c.clearRect(0,0,canvas.width,canvas.height);const xs=[100,280,460,640,820],floor=330;for(let i=0;i<5;i++){const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind);c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawIllustratedCat(c,p,app,poseFor(kind,t,i,mood),t);c.restore();c.fillStyle="#554b43";c.font="600 13px ui-monospace,monospace";c.textAlign="center";c.fillText(`#${i+1}`,xs[i],floor+42);}c.textAlign="left";c.fillStyle="rgba(70,62,55,.6)";c.font="12px ui-monospace,monospace";c.fillText(`${kind} · ${app.markings} · ${controls.seed.value||"cat"}`,18,494);requestAnimationFrame(render);}requestAnimationFrame(render);
+</script></body></html>
