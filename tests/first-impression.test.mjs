@@ -24,14 +24,28 @@ test("click affection and pickup are different interactions",()=>{
   assert.doesNotMatch(main,/playSpeciesVocal\(pet\.state\.id,pet\.state\.species\).*receivePetting/s);
 });
 
-test("cat affection has a soft procedural purr instead of raw UI audio",()=>{
+test("cat affection has a soft procedural purr and visible nuzzle",()=>{
   const sound=readFileSync(join(root,"src","app","sound.ts"),"utf8");
   const main=readFileSync(join(root,"src","app","main.ts"),"utf8");
+  const renderer=readFileSync(join(root,"src","app","renderer.ts"),"utf8");
   assert.match(sound,/private playPurr/);
   assert.match(sound,/harmonic\.frequency/);
   assert.match(sound,/lfo\.frequency/);
   assert.match(sound,/dog:\["bark"\]/);
   assert.match(main,/sound\.play\(pet\.state\.id,pet\.state\.species,"purr"\)/);
+  assert.match(renderer,/const nuzzle=pleased\?/);
+  assert.match(renderer,/pleased\?\.25:0/);
+  assert.match(renderer,/pleased\?\.12:0/);
+});
+
+test("feeding and scratching wait for physical contact",()=>{
+  const renderer=readFileSync(join(root,"src","app","renderer.ts"),"utf8");
+  const physics=readFileSync(join(root,"src","core","physics.ts"),"utf8");
+  assert.match(renderer,/feedingSettled=feeding&&stationary/);
+  assert.match(renderer,/scratchingSettled=b==="scratch"&&stationary/);
+  assert.match(renderer,/scratchingSettled\?\(\.12\+/);
+  assert.match(physics,/object\.position\.x-dir\*24/);
+  assert.match(physics,/object\.position\.x-dir\*28/);
 });
 
 test("illustrated transient effects stay in the pixel-art language",()=>{
