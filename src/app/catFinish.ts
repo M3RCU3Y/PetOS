@@ -5,7 +5,7 @@ const TAU=Math.PI*2;
 function clamp(v:number,a=0,b=1):number{return Math.max(a,Math.min(b,v));}
 function hash01(input:string):number{let h=2166136261;for(const ch of input){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function rgb(hex:string):[number,number,number]{const clean=hex.replace("#","");const full=clean.length===3?clean.split("").map(x=>x+x).join(""):clean.padEnd(6,"0").slice(0,6);const n=parseInt(full,16)||0;return[(n>>16)&255,(n>>8)&255,n&255];}
-function shade(hex:string,f:number):string{const [r,g,b]=rgb(hex),ch=(v:number)=>Math.round(clamp(v*f,0,255));return`rgb(${ch(r)},${ch(g)},${ch(b)})`;}
+function shade(hex:string,f:number):string{const [r,g,b]=rgb(hex),ch=(v:number)=>Math.round(clamp(v*f,0,255));return`#${[ch(r),ch(g),ch(b)].map(v=>v.toString(16).padStart(2,"0")).join("")}`;}
 function rgba(hex:string,a:number):string{const[r,g,b]=rgb(hex);return`rgba(${r},${g},${b},${a})`;}
 function ellipse(c:CanvasRenderingContext2D,x:number,y:number,rx:number,ry:number,color:string,rot=0):void{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,rot,0,TAU);c.fill();}
 function line(c:CanvasRenderingContext2D,color:string,width:number,draw:()=>void):void{c.strokeStyle=color;c.lineWidth=width;c.lineCap="round";c.lineJoin="round";c.beginPath();draw();c.stroke();}
