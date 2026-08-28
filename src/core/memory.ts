@@ -5,6 +5,7 @@ function blankRelationship():Relationship{return{familiarity:0,trust:0,affection
 
 export class PetMemory{
   private episodes:EpisodicMemory[];private surfacePrefs:Map<string,number>;private appPrefs:Map<string,number>;private toyPrefs:Map<string,number>;private objectPrefs:Map<string,number>;private relationships:Map<string,Relationship>;private maxEpisodes=200;
+  private objectReinforcedAt=new Map<string,number>();
   constructor(seed?:{memories?:EpisodicMemory[];surfacePreferences?:Record<string,number>;appPreferences?:Record<string,number>;toyPreferences?:Record<string,number>;objectPreferences?:Record<string,number>;relationships?:Record<string,number|Relationship>}){
     this.episodes=[...(seed?.memories??[])];this.surfacePrefs=new Map(Object.entries(seed?.surfacePreferences??{}));this.appPrefs=new Map(Object.entries(seed?.appPreferences??{}));this.toyPrefs=new Map(Object.entries(seed?.toyPreferences??{}));this.objectPrefs=new Map(Object.entries(seed?.objectPreferences??{}));this.relationships=new Map();
     if(seed?.relationships)for(const[id,value]of Object.entries(seed.relationships))this.relationships.set(id,typeof value==="number"?{...blankRelationship(),familiarity:value}:{...blankRelationship(),...value});
@@ -13,7 +14,13 @@ export class PetMemory{
   reinforceSurface(id:string,delta:number):void{this.surfacePrefs.set(id,clamp((this.surfacePrefs.get(id)??0)+delta,-1,1));}
   reinforceApp(id:string,delta:number):void{this.appPrefs.set(id,clamp((this.appPrefs.get(id)??0)+delta,-1,1));}
   reinforceToy(id:string,delta:number):void{this.toyPrefs.set(id,clamp((this.toyPrefs.get(id)??0)+delta,-1,1));}
-  reinforceObject(id:string,delta:number):void{this.objectPrefs.set(id,clamp((this.objectPrefs.get(id)??0)+delta,-1,1));}
+  reinforceObject(id:string,delta:number):void{
+    // Tiny autonomous gains come from the decision loop and must describe repeated
+    // experiences, not frame rate. Larger explicit adjustments (imports/tests/tools)
+    // remain immediate.
+    if(delta>0&&delta<=.02){const now=Date.now(),last=this.objectReinforcedAt.get(id)??-Infinity;if(now-last<20_000)return;this.objectReinforcedAt.set(id,now);}
+    this.objectPrefs.set(id,clamp((this.objectPrefs.get(id)??0)+delta,-1,1));
+  }
   relate(id:string):Relationship{let rel=this.relationships.get(id);if(!rel){rel=blankRelationship();this.relationships.set(id,rel);}return rel;}
   noteEncounter(id:string,kind:SocialEncounterKind):void{const rel=this.relate(id),bump=(key:keyof Relationship,d:number)=>{rel[key]=clamp(rel[key]+d,-1,1);};switch(kind){case"greet":bump("familiarity",.03);bump("trust",.01);break;case"play":bump("familiarity",.04);bump("affection",.025);bump("trust",.02);bump("rivalry",-.01);break;case"fight":bump("familiarity",.03);bump("rivalry",.035);bump("irritation",.015);break;case"cuddle":case"share":bump("affection",.04);bump("trust",.03);bump("familiarity",.03);bump("irritation",-.025);break;case"steal":bump("irritation",.04);bump("rivalry",.05);break;}}
   adjustRelationship(id:string,delta:number):void{const rel=this.relate(id);rel.affection=clamp(rel.affection+delta,-1,1);rel.trust=clamp(rel.trust+delta*.6,-1,1);rel.familiarity=clamp(rel.familiarity+Math.abs(delta)*.5,-1,1);}
