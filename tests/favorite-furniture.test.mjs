@@ -12,6 +12,16 @@ test("furniture preference survives memory serialization",()=>{
   assert.equal(restored.favoriteObject(),"bed:window");
 });
 
+test("tiny autonomous furniture gains are not frame-rate dependent",()=>{
+  const memory=new PetMemory();
+  memory.reinforceObject("bed:slow-burn",.012);
+  memory.reinforceObject("bed:slow-burn",.012);
+  memory.reinforceObject("bed:slow-burn",.012);
+  assert.equal(memory.preferenceForObject("bed:slow-burn"),.012);
+  memory.reinforceObject("bed:slow-burn",.3);
+  assert.equal(memory.preferenceForObject("bed:slow-burn"),.312);
+});
+
 test("a tired pet deliberately picks its learned bed",()=>{
   const pet=new Pet({id:"bed-loyalist",name:"Mochi",species:"cat",nowMs:0,x:280,y:700},new SeededRandom(93));
   pet.memory.reinforceObject("bed:favorite",.82);
