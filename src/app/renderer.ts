@@ -77,7 +77,7 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     tailWagAmp:stalking?1.25:investigating?1.4:stretching?2:feedingSettled?.65:scratchingSettled?1.1:loaf?.7:pleased?3.8:happy?6.5:p.affect.valence>.35?idleTail:2.2,
     tailFast:quietTail?false:pleased?false:happy||p.affect.arousal>.7,
     gait:(t+phase)/(fast?80:walking?140:180),legAmp:airborne?0:(fast?4:walking?3:0)*motionScale,bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?1.45:walking?.85:0)*motionScale,
-    puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded&&stationary?Math.sin(t/110):0):(scratchingSettled?(Math.sin(t/90)*.5+.5):0),
+    puff:b==="startle",carry:b==="carry_toy",pawReach:b==="play_toy"?(p.body.grounded&&stationary?Math.sin(t/110):0):(scratchingSettled?(.12+(Math.sin(t/90)*.5+.5)*.88):0),
     grooming:b==="groom",licking:b==="groom"||(b==="drink"&&feedingSettled),pouncing:b==="pounce",loaf
   };
 }
