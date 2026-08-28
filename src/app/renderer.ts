@@ -57,7 +57,7 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
   const scared=b==="startle"||p.affect.stress>.6;
   return{
     lying:sleeping,
-    sitting:b==="sit"||b==="perch",
+    sitting:b==="sit"||b==="perch"||b==="groom",
     crouch:b==="stalk"?.85:b==="hide"?.9:(b==="pounce"&&p.body.grounded)?1:b==="investigate"?.25:0,
     bow:["stretch","play_pet","play_fight"].includes(b)?1:b==="greet_pet"?.55:0,
     arch:b==="startle"?1:(scared&&b==="idle"?.3:0),
@@ -74,7 +74,8 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
     bounce:airborne?0:Math.abs(Math.sin((fast?t/80:t/140)+phase))*(fast?2.5:walking?1.8:0)*motionScale,
     puff:b==="startle",
     carry:b==="carry_toy",
-    pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0)
+    pawReach:b==="play_toy"?(p.body.grounded?Math.sin(t/110):0):(b==="scratch"?(Math.sin(t/90)*.5+.5):0),
+    grooming:b==="groom"
   };
 }
 
@@ -142,13 +143,6 @@ function drawCatEffects(c:CanvasRenderingContext2D,p:PetState,pos:Vec2,t:number,
   c.textAlign="left";
 }
 
-/**
- * Public renderer facade.
- *
- * The mature renderer remains intact underneath. Cats without custom sprite sheets
- * use the live illustrated Canvas2D path for ordinary locomotion/rest poses, while
- * traversal poses and every other species continue through the legacy renderer.
- */
 export class PixelRenderer extends LegacyPixelRenderer{
   private illustratedAppearances=new Map<string,PetAppearance>();
 
@@ -190,7 +184,6 @@ export class PixelRenderer extends LegacyPixelRenderer{
   }
 }
 
-/** Creator/onboarding previews use the same live cat painter as the desktop. */
 export function renderPetPreview(canvas:HTMLCanvasElement,species:Species,appearance:PetAppearance,behavior:string,t:number):void{
   if(species!=="cat"||appearance.sheet){
     legacyRenderPetPreview(canvas,species,appearance,behavior,t);
