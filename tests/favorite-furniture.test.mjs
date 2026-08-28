@@ -22,19 +22,27 @@ test("tiny autonomous furniture gains are not frame-rate dependent",()=>{
   assert.equal(memory.preferenceForObject("bed:slow-burn"),.312);
 });
 
-test("a tired pet deliberately picks its learned bed",()=>{
-  const pet=new Pet({id:"bed-loyalist",name:"Mochi",species:"cat",nowMs:0,x:280,y:700},new SeededRandom(93));
+function sleepyCat(x,id){
+  const pet=new Pet({id,name:"Mochi",species:"cat",nowMs:0,x,y:700},new SeededRandom(93));
   pet.memory.reinforceObject("bed:favorite",.82);
   pet.state.behaviorSinceMs=-30_000;
   pet.state.drives.fatigue=.9;pet.state.drives.play=.01;pet.state.drives.social=.01;pet.state.drives.curiosity=.01;pet.state.drives.comfort=.65;pet.state.affect.arousal=.06;pet.state.affect.stress=.02;
-  const world=calmDesktop(40_000);
-  world.secondsSinceNewWindow=999;
-  world.cursor={position:{x:1100,y:500},speed:0,distanceToPet:900,buttons:0};
-  world.objects=[
-    {id:"bed:first",kind:"bed",position:{x:430,y:700},radius:38,comfort:.9},
-    {id:"bed:favorite",kind:"bed",position:{x:820,y:700},radius:38,comfort:.9}
-  ];
-  const decision=pet.tick(world,100);
+  return pet;
+}
+function bedWorld(){
+  const world=calmDesktop(40_000);world.secondsSinceNewWindow=999;world.cursor={position:{x:1100,y:500},speed:0,distanceToPet:900,buttons:0};
+  world.objects=[{id:"bed:first",kind:"bed",position:{x:430,y:700},radius:38,comfort:.9},{id:"bed:favorite",kind:"bed",position:{x:820,y:700},radius:38,comfort:.9}];return world;
+}
+
+test("a tired pet travels to its learned bed before sleeping",()=>{
+  const decision=sleepyCat(280,"bed-traveler").tick(bedWorld(),100);
+  assert.equal(decision.behavior,"walk");
+  assert.equal(decision.targetId,"bed:favorite");
+  assert.match(decision.reason,/favorite bed/);
+});
+
+test("a tired pet settles into its learned bed once nearby",()=>{
+  const decision=sleepyCat(790,"bed-settler").tick(bedWorld(),100);
   assert.equal(decision.behavior,"sleep");
   assert.equal(decision.targetId,"bed:favorite");
   assert.match(decision.reason,/favorite bed/);
