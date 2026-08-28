@@ -22,6 +22,7 @@ export interface IllustratedCatPose {
   puff:boolean;
   carry:boolean;
   pawReach:number;
+  grooming:boolean;
   party?:boolean;
 }
 
@@ -179,6 +180,22 @@ function drawLeg(c:CanvasRenderingContext2D,a:PetAppearance,x:number,hipY:number
   for(const dx of [-1.1,1.2]){c.beginPath();c.moveTo(x+dx,pawY-1.1);c.lineTo(x+dx*.9,pawY+.3);c.stroke();}
 }
 
+function drawGroomPaw(c:CanvasRenderingContext2D,a:PetAppearance,t:number):void{
+  const sweep=Math.sin(t/180)*.5+.5;
+  const dark=shade(a.coat,.72);
+  c.save();
+  c.translate(7,-28);
+  c.rotate(-.5-sweep*.36);
+  c.fillStyle=bodyGradient(c,a,-3,-1,3,-17);
+  c.beginPath();
+  c.moveTo(-2.8,0);c.quadraticCurveTo(-4,-7,-2.3,-15);
+  c.quadraticCurveTo(0,-18,3,-15);c.quadraticCurveTo(4,-7,2.4,0);c.closePath();c.fill();
+  ellipse(c,.4,-16.2,4.3,2.8,shade(a.accent,1.02),-.1);
+  c.strokeStyle=rgba(dark,.45);c.lineWidth=.55;
+  c.beginPath();c.moveTo(-1,-17.2);c.lineTo(-1,-15.1);c.moveTo(1.2,-17.2);c.lineTo(1.1,-15.1);c.stroke();
+  c.restore();
+}
+
 function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const crouch=pose.crouch;
   const bodyY=-27+crouch*7-pose.bounce;
@@ -251,6 +268,7 @@ function drawSitting(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:
     for(let i=0;i<3;i++){c.beginPath();c.moveTo(-11+i*6,-34);c.quadraticCurveTo(-8+i*6,-28,-7+i*6,-23);c.stroke();}
   }
   drawHead(c,a,pose,7,-42+pose.headBob,t,m);
+  if(pose.grooming)drawGroomPaw(c,a,t);
 }
 
 function drawSleeping(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
