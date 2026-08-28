@@ -27,6 +27,33 @@ export interface IllustratedCatPose {
 
 const TAU=Math.PI*2;
 
+interface CatMorph {
+  head:number;
+  ears:number;
+  bodyLength:number;
+  bodyRound:number;
+  muzzle:number;
+  tail:number;
+}
+
+function hash01(input:string):number{
+  let h=2166136261;
+  for(const ch of input){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}
+  return(h>>>0)/4294967296;
+}
+
+function morphFor(p:PetState):CatMorph{
+  const v=(salt:string)=>hash01(`${p.id}:${salt}`);
+  return{
+    head:.95+v("head")*.11,
+    ears:.9+v("ears")*.2,
+    bodyLength:.95+v("length")*.1,
+    bodyRound:.94+v("round")*.13,
+    muzzle:.92+v("muzzle")*.16,
+    tail:.9+v("tail")*.2
+  };
+}
+
 function clamp(v:number,a=0,b=1):number{return Math.max(a,Math.min(b,v));}
 function shade(hex:string,f:number):string{
   const clean=hex.replace("#","");
@@ -65,11 +92,11 @@ function drawEye(c:CanvasRenderingContext2D,x:number,y:number,open:number,gx:num
   c.beginPath();c.ellipse(x,y,2.7,h,0,0,TAU);c.stroke();
 }
 
-function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number):void{
+function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,m:CatMorph):void{
   const accent=shade(a.accent,1.03);
   const dark=shade(a.coat,.5);
-  ellipse(c,cx+4.1,cy+3.3,6.1,4.4,rgba(accent,.92));
-  ellipse(c,cx-1.2,cy+4.1,4.6,3.8,rgba(accent,.58));
+  ellipse(c,cx+4.1,cy+3.3,6.1*m.muzzle,4.4*m.muzzle,rgba(accent,.92));
+  ellipse(c,cx-1.2,cy+4.1,4.6*m.muzzle,3.8*m.muzzle,rgba(accent,.58));
   drawEye(c,cx-4.0,cy-1.6,p.eyeOpen,p.pupilX,p.pupilY,a.eye,true);
   drawEye(c,cx+3.5,cy-1.4,p.eyeOpen,p.pupilX,p.pupilY,a.eye,false);
   path(c,"#9a5b61",()=>{c.moveTo(cx+8.2,cy+2);c.lineTo(cx+11,cy+3.2);c.lineTo(cx+8.3,cy+4.7);});
@@ -79,13 +106,13 @@ function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   for(const dy of [-.9,1.1,3.1]){c.beginPath();c.moveTo(cx+7.2,cy+4.2+dy);c.quadraticCurveTo(cx+14,cy+3.4+dy,cx+18,cy+5+dy);c.stroke();}
 }
 
-function drawEars(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,t:number):void{
+function drawEars(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,t:number,m:CatMorph):void{
   const flat=p.earBack;
   const twitch=p.earTwitch>0&&Math.sin(t/55)>0?p.earTwitch:0;
   const outer=shade(a.coat,.9),inner=rgba(a.accent,.68);
   const leftAngle=-.08-flat*.46,rightAngle=.08+flat*.46;
   const ear=(x:number,ang:number,mirror:number)=>{
-    c.save();c.translate(x,cy);c.rotate(ang);c.scale(mirror,1);
+    c.save();c.translate(x,cy);c.rotate(ang);c.scale(mirror*m.ears,m.ears);
     path(c,outer,()=>{c.moveTo(-1,2);c.lineTo(2,-13-twitch);c.quadraticCurveTo(6,-6,8,4);c.lineTo(1,5);});
     path(c,inner,()=>{c.moveTo(1,1);c.lineTo(3,-8-twitch*.55);c.lineTo(6,2);});
     c.restore();
@@ -93,9 +120,10 @@ function drawEars(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   ear(cx-8,leftAngle,1);ear(cx+7,rightAngle,-1);
 }
 
-function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,t:number):void{
+function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,t:number,m:CatMorph):void{
   c.save();
-  drawEars(c,a,p,cx,cy-6,t);
+  c.translate(cx,cy);c.scale(m.head,m.head);c.translate(-cx,-cy);
+  drawEars(c,a,p,cx,cy-6,t,m);
   c.fillStyle=bodyGradient(c,a,cx-12,cy-10,cx+12,cy+11);
   c.beginPath();c.ellipse(cx,cy,12.7,11.2,-.04,0,TAU);c.fill();
   ellipse(c,cx-3.6,cy-5.1,6.6,2.5,rgba(shade(a.coat,1.18),.42),-.13);
@@ -108,7 +136,7 @@ function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   }else if(a.markings==="patched"){
     ellipse(c,cx-5.2,cy-1.4,4.8,5.4,rgba(a.accent,.68),-.3);
   }
-  drawFace(c,a,p,cx,cy);
+  drawFace(c,a,p,cx,cy,m);
   if(p.party){
     path(c,"#e8574f",()=>{c.moveTo(cx-5,cy-9);c.lineTo(cx,cy-25);c.lineTo(cx+5,cy-9);});
     path(c,"#ffd76e",()=>{c.moveTo(cx-2.2,cy-15);c.lineTo(cx,cy-25);c.lineTo(cx+2.2,cy-15);});
@@ -117,12 +145,12 @@ function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   c.restore();
 }
 
-function drawTail(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,t:number,x:number,y:number):void{
+function drawTail(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,t:number,x:number,y:number,m:CatMorph):void{
   const happy=p.tailLift;
   const fast=p.tailFast?115:340;
   const sway=Math.sin(t/fast)*p.tailWagAmp*.62;
   c.strokeStyle=p.puff?shade(a.coat,1.18):shade(a.coat,.77);
-  c.lineWidth=p.puff?7.6:6.1;c.lineCap="round";c.lineJoin="round";
+  c.lineWidth=(p.puff?7.6:6.1)*m.tail;c.lineCap="round";c.lineJoin="round";
   c.beginPath();c.moveTo(x,y);
   if(p.lying){
     c.bezierCurveTo(x-12,y+2,x-18,y-2,x-22+sway*.25,y-8);
@@ -131,7 +159,7 @@ function drawTail(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
     c.bezierCurveTo(x-16+sway*.45,y-26-happy*10,x-8+sway,y-29-happy*6,x-4+sway,y-23-happy*4);
   }
   c.stroke();
-  c.strokeStyle=rgba(a.accent,.62);c.lineWidth=2.2;
+  c.strokeStyle=rgba(a.accent,.62);c.lineWidth=2.2*m.tail;
   c.beginPath();
   if(p.lying){c.moveTo(x-17,y-4);c.lineTo(x-22+sway*.25,y-8);}else{c.moveTo(x-10+sway*.7,y-28-happy*6);c.lineTo(x-4+sway,y-23-happy*4);}
   c.stroke();
@@ -151,12 +179,12 @@ function drawLeg(c:CanvasRenderingContext2D,a:PetAppearance,x:number,hipY:number
   for(const dx of [-1.1,1.2]){c.beginPath();c.moveTo(x+dx,pawY-1.1);c.lineTo(x+dx*.9,pawY+.3);c.stroke();}
 }
 
-function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
+function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const crouch=pose.crouch;
   const bodyY=-27+crouch*7-pose.bounce;
   const bodyH=18-crouch*3;
   const floor=0;
-  drawTail(c,a,pose,t,-19,bodyY+11);
+  drawTail(c,a,pose,t,-19*m.bodyLength,bodyY+11,m);
 
   const phase=pose.gait;
   const offsets=[Math.sin(phase),Math.cos(phase),Math.cos(phase),Math.sin(phase)];
@@ -166,6 +194,10 @@ function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,
     drawLeg(c,a,xs[i]!,bodyY+10,floor,lift,i>=2);
   }
 
+  c.save();
+  c.translate(0,bodyY+bodyH*.5);
+  c.scale(m.bodyLength,m.bodyRound);
+  c.translate(0,-(bodyY+bodyH*.5));
   c.fillStyle=bodyGradient(c,a,-25,bodyY-4,25,bodyY+bodyH+5);
   c.beginPath();
   c.moveTo(-23,bodyY+7);
@@ -188,12 +220,13 @@ function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,
     ellipse(c,-9,bodyY+4,7.2,6.2,rgba(a.accent,.64),-.28);
     ellipse(c,9,bodyY+11,6,4.5,rgba(a.accent,.5),.22);
   }
+  c.restore();
 
-  const headX=22+pose.crouch*5+pose.headDip*7;
+  const headX=22+(m.bodyLength-1)*16+pose.crouch*5+pose.headDip*7;
   const headY=bodyY+2+pose.crouch*5+pose.headDip*10+pose.headBob;
   c.save();
   if(pose.bow>0){c.translate(headX,headY);c.rotate(.24*pose.bow);c.translate(-headX,-headY);}
-  drawHead(c,a,pose,headX,headY,t);
+  drawHead(c,a,pose,headX,headY,t,m);
   c.restore();
 
   if(pose.pawReach>0){
@@ -206,10 +239,10 @@ function drawStandingBody(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,
   }
 }
 
-function drawSitting(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
-  drawTail(c,a,pose,t,-10,-13);
+function drawSitting(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
+  drawTail(c,a,pose,t,-10,-13,m);
   c.fillStyle=bodyGradient(c,a,-15,-43,16,0);
-  c.beginPath();c.ellipse(-3,-20,15,22,-.16,0,TAU);c.fill();
+  c.beginPath();c.ellipse(-3,-20,15*m.bodyRound,22*m.bodyRound,-.16,0,TAU);c.fill();
   ellipse(c,-8,-8,10,7,shade(a.coat,.73));
   ellipse(c,6,-9,8,9,rgba(a.accent,.62));
   drawLeg(c,a,3,-22,0,0,true);drawLeg(c,a,11,-22,0,0,true);
@@ -217,30 +250,30 @@ function drawSitting(c:CanvasRenderingContext2D,a:PetAppearance,pose:Illustrated
     c.strokeStyle=rgba(shade(a.coat,.5),.68);c.lineWidth=2;c.lineCap="round";
     for(let i=0;i<3;i++){c.beginPath();c.moveTo(-11+i*6,-34);c.quadraticCurveTo(-8+i*6,-28,-7+i*6,-23);c.stroke();}
   }
-  drawHead(c,a,pose,7,-42+pose.headBob,t);
+  drawHead(c,a,pose,7,-42+pose.headBob,t,m);
 }
 
-function drawSleeping(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
+function drawSleeping(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
   const breathe=Math.sin(t/620)*.7;
-  drawTail(c,a,pose,t,-7,-7);
+  drawTail(c,a,pose,t,-7,-7,m);
   c.fillStyle=bodyGradient(c,a,-25,-23,24,-3);
-  c.beginPath();c.ellipse(-2,-10,25,12+breathe,-.06,0,TAU);c.fill();
+  c.beginPath();c.ellipse(-2,-10,25*m.bodyLength,(12+breathe)*m.bodyRound,-.06,0,TAU);c.fill();
   ellipse(c,7,-7,14,5.5,rgba(a.accent,.54),-.12);
   if(a.markings==="tabby"){
     c.strokeStyle=rgba(shade(a.coat,.5),.6);c.lineWidth=2;
     for(let i=0;i<4;i++){const x=-14+i*7;c.beginPath();c.moveTo(x,-20);c.quadraticCurveTo(x+2,-15,x+4,-12);c.stroke();}
   }
   const sleepy={...pose,eyeOpen:0,pupilX:0,pupilY:0};
-  drawHead(c,a,sleepy,17,-13,t);
+  drawHead(c,a,sleepy,17,-13,t,m);
   ellipse(c,18,-2,9,2.9,shade(a.accent,1.03));
 }
 
-/** Draws normal cat locomotion/rest poses from live parameters. Special traversal poses remain in the legacy renderer for now. */
 export function drawIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
+  const m=morphFor(p);
   c.save();
   if(pose.arch>0)c.translate(0,-2.5*pose.arch);
-  if(pose.lying)drawSleeping(c,a,pose,t);
-  else if(pose.sitting)drawSitting(c,a,pose,t);
-  else drawStandingBody(c,p,a,pose,t);
+  if(pose.lying)drawSleeping(c,p,a,pose,t,m);
+  else if(pose.sitting)drawSitting(c,p,a,pose,t,m);
+  else drawStandingBody(c,p,a,pose,t,m);
   c.restore();
 }
