@@ -3,6 +3,9 @@ import type { PetAppearance, PetState } from "../core/types.js";
 export interface IllustratedCatPose {
   lying:boolean;
   sitting:boolean;
+  vertical:boolean;
+  hanging:boolean;
+  peeking:boolean;
   crouch:number;
   bow:number;
   arch:number;
@@ -23,6 +26,7 @@ export interface IllustratedCatPose {
   carry:boolean;
   pawReach:number;
   grooming:boolean;
+  licking:boolean;
   party?:boolean;
 }
 
@@ -93,7 +97,7 @@ function drawEye(c:CanvasRenderingContext2D,x:number,y:number,open:number,gx:num
   c.beginPath();c.ellipse(x,y,2.7,h,0,0,TAU);c.stroke();
 }
 
-function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,m:CatMorph):void{
+function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,m:CatMorph,t:number):void{
   const accent=shade(a.accent,1.03);
   const dark=shade(a.coat,.5);
   ellipse(c,cx+4.1,cy+3.3,6.1*m.muzzle,4.4*m.muzzle,rgba(accent,.92));
@@ -103,6 +107,10 @@ function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   path(c,"#9a5b61",()=>{c.moveTo(cx+8.2,cy+2);c.lineTo(cx+11,cy+3.2);c.lineTo(cx+8.3,cy+4.7);});
   c.strokeStyle=dark;c.lineWidth=.8;c.lineCap="round";
   c.beginPath();c.moveTo(cx+9.3,cy+4.8);c.quadraticCurveTo(cx+7.7,cy+6.2,cx+5.8,cy+6.3);c.stroke();
+  if(p.licking&&Math.sin(t/145)>.15){
+    ellipse(c,cx+8.2,cy+7.2,2.1,1.4,"#d98791",.12);
+    ellipse(c,cx+8.6,cy+6.8,.7,.45,"rgba(255,220,226,.7)");
+  }
   c.strokeStyle="rgba(255,255,255,.45)";c.lineWidth=.7;
   for(const dy of [-.9,1.1,3.1]){c.beginPath();c.moveTo(cx+7.2,cy+4.2+dy);c.quadraticCurveTo(cx+14,cy+3.4+dy,cx+18,cy+5+dy);c.stroke();}
 }
@@ -137,7 +145,7 @@ function drawHead(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPos
   }else if(a.markings==="patched"){
     ellipse(c,cx-5.2,cy-1.4,4.8,5.4,rgba(a.accent,.68),-.3);
   }
-  drawFace(c,a,p,cx,cy,m);
+  drawFace(c,a,p,cx,cy,m,t);
   if(p.party){
     path(c,"#e8574f",()=>{c.moveTo(cx-5,cy-9);c.lineTo(cx,cy-25);c.lineTo(cx+5,cy-9);});
     path(c,"#ffd76e",()=>{c.moveTo(cx-2.2,cy-15);c.lineTo(cx,cy-25);c.lineTo(cx+2.2,cy-15);});
@@ -286,11 +294,42 @@ function drawSleeping(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose
   ellipse(c,18,-2,9,2.9,shade(a.accent,1.03));
 }
 
+function drawPeeking(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
+  const bob=Math.sin(t/650)*.8;
+  drawHead(c,a,pose,0,-10+bob,t,m);
+  ellipse(c,-7,-.8,4.6,2.5,shade(a.accent,1.02));
+  ellipse(c,7,-.8,4.6,2.5,shade(a.accent,1.02));
+  c.strokeStyle=rgba(shade(a.coat,.55),.38);c.lineWidth=.55;
+  for(const x of [-8.2,-6.3,5.8,7.8]){c.beginPath();c.moveTo(x,-1.8);c.lineTo(x,-.2);c.stroke();}
+}
+
+function drawHanging(c:CanvasRenderingContext2D,a:PetAppearance,pose:IllustratedCatPose,t:number,m:CatMorph):void{
+  const sway=Math.sin(t/520)*1.2;
+  c.save();c.translate(sway,0);
+  c.strokeStyle=shade(a.coat,.76);c.lineWidth=5.8*m.tail;c.lineCap="round";
+  c.beginPath();c.moveTo(-3,31);c.bezierCurveTo(-10,38,-8,48,-15,53);c.stroke();
+  c.fillStyle=bodyGradient(c,a,-9,1,9,38);
+  c.beginPath();
+  c.moveTo(-7,0);c.quadraticCurveTo(-10,14,-8,30);c.quadraticCurveTo(-5,39,4,38);
+  c.quadraticCurveTo(10,28,8,1);c.lineTo(7,0);c.closePath();c.fill();
+  if(a.markings==="tabby"){
+    c.strokeStyle=rgba(shade(a.coat,.5),.6);c.lineWidth=1.7;c.lineCap="round";
+    for(const y of [13,20,27]){c.beginPath();c.moveTo(-7,y);c.quadraticCurveTo(-2,y+2,2,y+1);c.stroke();}
+  }else if(a.markings==="tuxedo"){ellipse(c,2,27,5.2,8.2,rgba(a.accent,.86));}
+  drawHead(c,a,{...pose,pupilY:.65},1,9,t,m);
+  ellipse(c,-6,-.5,4.5,2.7,shade(a.accent,1.02));
+  ellipse(c,6,-.5,4.5,2.7,shade(a.accent,1.02));
+  c.restore();
+}
+
 export function drawIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):void{
   const m=morphFor(p);
   c.save();
   if(pose.arch>0)c.translate(0,-2.5*pose.arch);
-  if(pose.lying)drawSleeping(c,p,a,pose,t,m);
+  if(pose.peeking)drawPeeking(c,a,pose,t,m);
+  else if(pose.hanging)drawHanging(c,a,pose,t,m);
+  else if(pose.vertical){c.rotate(-Math.PI/2);drawStandingBody(c,p,a,pose,t,m);}
+  else if(pose.lying)drawSleeping(c,p,a,pose,t,m);
   else if(pose.sitting)drawSitting(c,p,a,pose,t,m);
   else drawStandingBody(c,p,a,pose,t,m);
   c.restore();
