@@ -2,6 +2,7 @@ import { SPECIES } from "../core/species.js";
 import { isAdoptionAnniversary } from "../core/pet.js";
 import type { PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types.js";
 import { drawIllustratedCat, type IllustratedCatPose } from "./catMotion.js";
+import { catArtTime } from "./catCadence.js";
 import { drawCozyObjectBack, drawCozyObjectFront } from "./cozyHabitat.js";
 import { PixelRenderer as LegacyPixelRenderer, buildPreviewState as legacyBuildPreviewState, renderPetPreview as legacyRenderPetPreview } from "./legacyRenderer.js";
 import type { RenderScene } from "./legacyRenderer.js";
@@ -83,16 +84,16 @@ function computeCatPose(p:PetState,t:number,phase:number,cursor?:Vec2,reducedMot
 }
 
 function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2,t:number,cursor?:Vec2,reducedMotion=false):void{
-  const pose=computeCatPose(p,t,hash01(p.id)*10000,cursor,reducedMotion);if(isAdoptionAnniversary(p,Date.now()))pose.party=true;
+  const artT=catArtTime(p,t,reducedMotion),pose=computeCatPose(p,artT,hash01(p.id)*10000,cursor,reducedMotion);if(isAdoptionAnniversary(p,Date.now()))pose.party=true;
   const art=cozyCatAppearance(a),touchAge=recentTouchAge(p),pleased=touchAge>=0&&touchAge<1100&&!p.body.held&&p.behavior!=="seek_user"&&p.affect.valence>.28&&p.affect.stress<.4;
   let sy=1,sx=1;
   if(!p.body.grounded){sy=Math.min(1.15,1+Math.abs(p.body.velocity.y)*.00042);sx=Math.pow(sy,-.68);}
-  if(pose.lying)sy*=1+Math.sin(t/620)*.018;
+  if(pose.lying)sy*=1+Math.sin(artT/620)*.018;
   if(p.behavior==="stretch"){sx*=1.08;sy*=.94;}
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
   const nuzzle=pleased?smoothstep(clamp(1-touchAge/1100))*Math.sin(clamp(touchAge/1100)*Math.PI)*1.7:0;
   const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
-  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion);c.restore();
+  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion,artT);c.restore();
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{
