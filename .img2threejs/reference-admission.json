@@ -1,0 +1,16 @@
+{
+  "admitted": true,
+  "reasons": [],
+  "provenance": {
+    "viewpoint": "oblique",
+    "sourcePath": "C:\\Users\\brand\\AppData\\Local\\Temp\\codex-clipboard-8d22aa11-0e27-468b-ba82-b540ca84029e.png",
+    "width": 1374,
+    "height": 843,
+    "foregroundCoverage": 0.5002,
+    "largestComponentFraction": 0.9236,
+    "pHash": "11945155228599942400",
+    "duplicateOfHash": null
+  },
+  "semanticVerdict": "conditional-style-reference",
+  "semanticReason": "Multi-character scene is suitable for a stylized 2D art-direction match, not exact single-character 3D reconstruction."
+}

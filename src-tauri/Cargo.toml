@@ -7,7 +7,9 @@ edition = "2021"
 
 [lib]
 name = "petos_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# The desktop binary links the Rust library directly. Keeping a cdylib here
+# makes recent Rust GNU toolchains emit more than 65,535 PE exports on Windows.
+crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

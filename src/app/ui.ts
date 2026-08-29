@@ -38,6 +38,7 @@ const LOOK_PRESETS:Array<{name:string;coat:string;accent:string;eye:string;marki
   {name:"Cream Biscuit",coat:"#c9a77f",accent:"#f1dbc0",eye:"#91ad6c",markings:"uniform"},
   {name:"Cocoa Patch",coat:"#795340",accent:"#dfb887",eye:"#d8b85f",markings:"patched"},
   {name:"Silver Tabby",coat:"#777982",accent:"#d5d0c7",eye:"#a3c6a0",markings:"tabby"},
+  {name:"Cloud Point",coat:"#eadfc8",accent:"#705447",eye:"#70b9e8",markings:"patched"},
   {name:"Midnight",coat:"#22242b",accent:"#8d7d74",eye:"#d1b962",markings:"uniform"},
   {name:"Peach Patch",coat:"#c87958",accent:"#f3cbb0",eye:"#8fb58c",markings:"patched"}
 ];

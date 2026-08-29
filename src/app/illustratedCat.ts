@@ -58,11 +58,11 @@ function hash01(input:string):number{
 function morphFor(p:PetState):CatMorph{
   const v=(salt:string)=>hash01(`${p.id}:${salt}`);
   return{
-    head:1.035+v("head")*.085,
+    head:1.20+v("head")*.10,
     ears:.865+v("ears")*.13,
-    bodyLength:.91+v("length")*.095,
-    bodyRound:.99+v("round")*.105,
-    muzzle:.95+v("muzzle")*.11,
+    bodyLength:.80+v("length")*.08,
+    bodyRound:1.12+v("round")*.10,
+    muzzle:1.08+v("muzzle")*.10,
     tail:.86+v("tail")*.12,
     legs:.95+v("legs")*.10,
     fluff:.15+v("fluff")*.85
@@ -126,17 +126,20 @@ function drawEye(c:CanvasRenderingContext2D,x:number,y:number,open:number,gx:num
 function drawFace(c:CanvasRenderingContext2D,a:PetAppearance,p:IllustratedCatPose,cx:number,cy:number,m:CatMorph,t:number):void{
   const pal=coatPalette(a),happy=p.eyeOpen>.7&&p.tailLift>.55&&p.earBack<.25;
   const eyeOpen=happy?Math.min(p.eyeOpen,.82):p.eyeOpen;
-  ellipse(c,cx+4.0,cy+3.1,5.65*m.muzzle,4.0*m.muzzle,rgba(pal.accentHi,.92));
-  ellipse(c,cx-1.0,cy+3.9,4.2*m.muzzle,3.5*m.muzzle,rgba(pal.accent,.46));
-  drawEye(c,cx-4.0,cy-1.45,eyeOpen,p.pupilX,p.pupilY,a.eye,true);
-  drawEye(c,cx+3.25,cy-1.3,eyeOpen,p.pupilX,p.pupilY,a.eye,false);
-  path(c,"#a9666d",()=>{c.moveTo(cx+7.45,cy+1.95);c.quadraticCurveTo(cx+8.95,cy+1.55,cx+10.15,cy+2.85);c.quadraticCurveTo(cx+8.95,cy+4.05,cx+7.45,cy+3.8);});
-  line(c,rgba(pal.deep,.78),.68,()=>{c.moveTo(cx+8.8,cy+4.1);c.lineTo(cx+8.7,cy+5.2);c.quadraticCurveTo(cx+7.3,cy+6.25,cx+5.7,cy+5.85);});
-  line(c,rgba(pal.deep,.64),.6,()=>{c.moveTo(cx+8.7,cy+5.2);c.quadraticCurveTo(cx+9.7,cy+6.05,cx+10.55,cy+5.6);});
-  for(const [dx,dy] of [[3.7,4.0],[4.85,4.55],[3.5,5.2]] as const)ellipse(c,cx+dx,cy+dy,.34,.34,rgba(pal.deep,.4));
-  if(p.licking&&Math.sin(t/135)>.1){ellipse(c,cx+7.9,cy+6.85,1.65,1.1,"#d98e99",.12);}
+  ellipse(c,cx+1.2,cy+3.6,5.45*m.muzzle,4.15*m.muzzle,rgba(pal.accentHi,.92));
+  ellipse(c,cx-2.4,cy+3.7,4.1*m.muzzle,3.55*m.muzzle,rgba(pal.accent,.48));
+  drawEye(c,cx-4.15,cy-1.45,eyeOpen,p.pupilX,p.pupilY,a.eye,true);
+  drawEye(c,cx+3.45,cy-1.35,eyeOpen,p.pupilX,p.pupilY,a.eye,false);
+  path(c,"#a9666d",()=>{c.moveTo(cx-.8,cy+2.45);c.quadraticCurveTo(cx+.7,cy+1.65,cx+2.2,cy+2.45);c.quadraticCurveTo(cx+.7,cy+3.85,cx-.8,cy+2.45);});
+  line(c,rgba(pal.deep,.78),.72,()=>{c.moveTo(cx+.7,cy+3.25);c.lineTo(cx+.7,cy+4.55);c.quadraticCurveTo(cx-.7,cy+5.75,cx-2.3,cy+5.15);});
+  line(c,rgba(pal.deep,.68),.64,()=>{c.moveTo(cx+.7,cy+4.55);c.quadraticCurveTo(cx+2.1,cy+5.75,cx+3.55,cy+5.15);});
+  for(const [dx,dy] of [[-3.9,3.9],[-4.8,4.75],[4.25,4.0],[5.1,4.75]] as const)ellipse(c,cx+dx,cy+dy,.34,.34,rgba(pal.deep,.46));
+  if(p.licking&&Math.sin(t/135)>.1){ellipse(c,cx+.9,cy+6.65,1.65,1.1,"#d98e99",.12);}
   line(c,"rgba(255,250,239,.5)",.54,()=>{
-    for(const dy of [-.55,1.05,2.55]){c.moveTo(cx+6.7,cy+4.05+dy);c.quadraticCurveTo(cx+12.9,cy+3.4+dy,cx+16.2,cy+4.65+dy);}
+    for(const dy of [-.45,1.1]){
+      c.moveTo(cx+4.6,cy+4.0+dy);c.quadraticCurveTo(cx+10.2,cy+3.4+dy,cx+13.5,cy+4.5+dy);
+      c.moveTo(cx-4.3,cy+4.0+dy);c.quadraticCurveTo(cx-9.6,cy+3.5+dy,cx-12.8,cy+4.7+dy);
+    }
   });
   if(m.fluff>.55){
     path(c,rgba(pal.hi,.42),()=>{c.moveTo(cx-10.5,cy+3.5);c.lineTo(cx-13.2,cy+5.0);c.lineTo(cx-10.7,cy+5.4);c.lineTo(cx-12.8,cy+7.2);c.lineTo(cx-8.3,cy+6.15);});
@@ -252,7 +255,7 @@ function drawStanding(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose
   const pal=coatPalette(a);ellipse(c,0,bodyY+8,24.2,12.2,pal.low);
   c.fillStyle=softBodyFill(c,a,-22,bodyY-5,22,bodyY+18);c.beginPath();c.ellipse(1,bodyY+6.4,22.9,11.35,-.01,0,TAU);c.fill();
   ellipse(c,8,bodyY+.9,12.0,4.3,rgba(pal.hi,.24),-.05);ellipse(c,-2,bodyY+13.3,17.3,3.1,rgba(pal.deep,.16));bodyMarkings(c,a,bodyY);backTufts(c,a,bodyY,m);c.restore();
-  const hx=22+(m.bodyLength-1)*14+pose.crouch*5+pose.headDip*7+(running?runStretch*15:0)+(scratching?1.8:0),hy=bodyY+2.0+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28+(running?Math.cos(pose.gait*2)*.28:0)-(scratching?2.2:0);
+  const hx=18+(m.bodyLength-.84)*10+pose.crouch*5+pose.headDip*7+(running?runStretch*15:0)+(scratching?1.8:0),hy=bodyY+2.0+pose.crouch*5+pose.headDip*10+pose.headBob+pose.bounce*.28+(running?Math.cos(pose.gait*2)*.28:0)-(scratching?2.2:0);
   if(scratching)drawScratchForelegs(c,a,t,bodyY,m);
   c.save();if(pose.bow>0){c.translate(hx,hy);c.rotate(.24*pose.bow);c.translate(-hx,-hy);}drawHead(c,a,pose,hx,hy,t,m);c.restore();
   if(pose.pawReach>0&&!scratching)drawLeg(c,a,20,bodyY+9,-pose.pawReach*7,0,0,true,m);

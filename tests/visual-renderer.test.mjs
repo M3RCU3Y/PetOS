@@ -50,14 +50,15 @@ test("illustrated cats keep the cozy pixel-painted rendering contract",()=>{
   assert.match(renderer,/ILLUSTRATED_CAT_SCALE=1\.23/);
 });
 
-test("locomotion uses real stride, feline bound and velocity-aware pounce",()=>{
-  const cat=source("src","app","illustratedCat.ts");
+test("authored locomotion uses held walk frames and a dedicated pounce silhouette",()=>{
+  const cat=source("src","app","illustratedCat.ts"),sprites=source("src","app","cozyCatSprites.ts");
   assert.match(cat,/pawX=x\+stride/);
-  assert.match(cat,/running\?\[pose\.gait,pose\.gait\+\.58/);
-  assert.match(cat,/runStretch=runWave\*\.045/);
   assert.match(cat,/vy=p\.body\.velocity\.y/);
   assert.match(cat,/foreReach=1-launch\*\.28\+descent\*\.08/);
   assert.match(cat,/hindTuck=launch\*\.52/);
+  assert.match(sprites,/Math\.floor\(t\/105\)%4,row:1/);
+  assert.match(sprites,/pose\.pouncing&&!p\.body\.grounded/);
+  assert.match(sprites,/col:3,row:3/);
 });
 
 test("pose changes use anticipation, one pounce landing and recovery",()=>{
@@ -104,16 +105,18 @@ test("transient cat feedback uses wall time and pixel effects",()=>{
   assert.match(renderer,/p\.behavior!=="seek_user"/);
 });
 
-test("cat lab ships the final motion compositor and held-art clock",()=>{
+test("cat lab ships the authored sprite families and held-art clock",()=>{
   const lab=join(root,"dist","cat-lab.html");
   assert.ok(existsSync(lab),"dist/cat-lab.html should be copied during npm run build");
   const html=readFileSync(lab,"utf8");
   assert.match(html,/drawIllustratedCat/);
-  assert.match(html,/Procedural Cat Lab/);
+  assert.match(html,/Cozy Cat Lab/);
+  assert.match(html,/drawCozyCatSprite/);
+  assert.match(html,/cozyCatSprites\.js/);
   assert.match(html,/catMotion\.js/);
   assert.match(html,/catCadence\.js/);
   assert.match(html,/catArtTime/);
-  assert.match(html,/SHIPPED MOTION \+ ART \+ CADENCE/);
+  assert.match(html,/SHIPPED SPRITES \+ MOTION \+ CADENCE/);
   assert.match(html,/loaf/);
   assert.match(html,/investigate/);
   assert.match(html,/stretch/);

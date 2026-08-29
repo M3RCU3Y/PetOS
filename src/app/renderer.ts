@@ -4,6 +4,7 @@ import type { PetAppearance, PetState, Rect, Species, Vec2 } from "../core/types
 import { drawIllustratedCat, type IllustratedCatPose } from "./catMotion.js";
 import { catArtTime } from "./catCadence.js";
 import { drawCozyObjectBack, drawCozyObjectFront } from "./cozyHabitat.js";
+import { drawCozyCatSprite, preloadCozyCatSprites } from "./cozyCatSprites.js";
 import { PixelRenderer as LegacyPixelRenderer, buildPreviewState as legacyBuildPreviewState, renderPetPreview as legacyRenderPetPreview } from "./legacyRenderer.js";
 import type { RenderScene } from "./legacyRenderer.js";
 
@@ -11,7 +12,7 @@ export { resolveSheetAnimation, preloadSheet, buildPreviewState } from "./legacy
 export type { RenderScene } from "./legacyRenderer.js";
 
 const TAU=Math.PI*2;
-const ILLUSTRATED_CAT_SCALE=1.23;
+const ILLUSTRATED_CAT_SCALE=1.23*1.08;
 function hash01(id:string):number{let h=2166136261;for(const ch of id){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
 function clamp(v:number,a=0,b=1):number{return Math.max(a,Math.min(b,v));}
 function smoothstep(v:number):number{const q=clamp(v);return q*q*(3-2*q);}
@@ -93,7 +94,9 @@ function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearan
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
   const nuzzle=pleased?smoothstep(clamp(1-touchAge/1100))*Math.sin(clamp(touchAge/1100)*Math.PI)*1.7:0;
   const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
-  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion,artT);c.restore();
+  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);
+  if(!drawCozyCatSprite(c,p,art,pose,artT))drawIllustratedCat(c,p,art,pose,t,reducedMotion,artT);
+  c.restore();
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{
@@ -168,3 +171,5 @@ export function renderPetPreview(canvas:HTMLCanvasElement,species:Species,appear
   const groundY=canvas.height*.9,state=legacyBuildPreviewState(species,behavior),pos={x:canvas.width/2,y:groundY},art=cozyCatAppearance(appearance);
   drawCatShadow(c,state,art,pos);paintIllustratedCat(c,state,art,pos,t);
 }
+
+preloadCozyCatSprites();

@@ -1,20 +1,20 @@
 {
   "id": "dog-pixel",
-  "name": "Pixel Dog (sprite demo)",
-  "version": "1.0.0",
+  "name": "Illustrated Dog",
+  "version": "1.1.0",
   "species": "dog",
   "author": "PetOS",
-  "description": "Generated sprite-sheet demonstrating the PetOS art pipeline.",
+  "description": "Code-generated illustrated sprite pack with layered shading and expressive motion.",
   "appearance": {
-    "coat": "#a0713f",
-    "accent": "#e8d5b0",
-    "eye": "#5a4a3a",
+    "coat": "#b7824c",
+    "accent": "#ead2a7",
+    "eye": "#5a4635",
     "scale": 1,
     "sheet": {
       "src": "sheets/dog-sample.png",
-      "frameWidth": 32,
-      "frameHeight": 32,
-      "fps": 6,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "fps": 7,
       "default": {
         "row": 0,
         "frames": 4
@@ -41,7 +41,9 @@
     }
   },
   "tags": [
-    "sample",
-    "sprites"
+    "generated",
+    "illustrated",
+    "sprites",
+    "dog"
   ]
 }
