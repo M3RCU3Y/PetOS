@@ -7,7 +7,7 @@
   </style>
 </head>
 <body><main>
-  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Procedural Cat Lab</h1><p>A cozy tuning room for the live code-drawn cat. No authored sprites: anatomy, coat, markings, expression, motion and stable individuality all come from the renderer.</p></div><div class="badge">SHIPPED MOTION · 72% PIXEL ART</div></header>
+  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Procedural Cat Lab</h1><p>A cozy tuning room for the live code-drawn cat. No authored sprites: anatomy, coat, markings, expression, motion and stable individuality all come from the renderer.</p></div><div class="badge">SHIPPED MOTION · HELD-FRAME PIXEL ART</div></header>
   <div class="shell">
     <section class="panel">
       <div class="panel-title"><strong>Art direction</strong><span>live controls</span></div>
@@ -18,18 +18,19 @@
       <label class="wide">Cat family seed<input id="seed" value="cozy-neko" maxlength="32"></label>
       <label class="wide">Display scale <span id="scaleValue">2.25×</span><input id="scale" type="range" min="1.3" max="3.2" step="0.05" value="2.25"></label>
       <label class="wide">Mood <span id="moodValue">content</span><input id="mood" type="range" min="-1" max="1" step="0.05" value="0.35"></label>
-      <div class="hint wide">Switch moments while the cats are moving. This bench now passes through the same anticipation, landing and silhouette-transition compositor as the desktop pet.</div>
+      <div class="hint wide">Switch moments while the cats are moving. This bench uses the same 8–12 fps held-art clock, anticipation, landing and silhouette-transition compositor as the desktop pet.</div>
     </section>
     <section class="stage">
-      <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">SHIPPED MOTION + ART</span></div>
+      <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">SHIPPED MOTION + ART + CADENCE</span></div>
       <div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div>
-      <div class="legend"><span><i class="dot"></i>low-density pixel raster</span><span><i class="dot"></i>stable anatomy per ID</span><span><i class="dot"></i>eased pose compositor</span><span><i class="dot"></i>no sprite atlas</span></div>
+      <div class="legend"><span><i class="dot"></i>low-density pixel raster</span><span><i class="dot"></i>stable anatomy per ID</span><span><i class="dot"></i>8–12 fps sprite cadence</span><span><i class="dot"></i>smooth world motion</span><span><i class="dot"></i>no sprite atlas</span></div>
     </section>
   </div>
   <section class="moments"><div class="moments-head"><div><h2>Cat moments board</h2><p>The small poses that make the cat feel like it is simply living on your desktop.</p></div><span class="pill">REGRESSION STRIP</span></div><div class="moments-wrap"><canvas id="moments" width="1160" height="310"></canvas></div><div class="footnote">idle · loaf · sleep · groom · sniff · stretch · stalk · pounce · peek</div></section>
 </main>
 <script type="module">
   import { drawIllustratedCat } from "./src/app/catMotion.js";
+  import { catArtTime } from "./src/app/catCadence.js";
   const canvas=document.querySelector("#preview"),c=canvas.getContext("2d"),momentCanvas=document.querySelector("#moments"),mc=momentCanvas.getContext("2d");
   const controls={behavior:document.querySelector("#behavior"),markings:document.querySelector("#markings"),coat:document.querySelector("#coat"),accent:document.querySelector("#accent"),eye:document.querySelector("#eye"),seed:document.querySelector("#seed"),scale:document.querySelector("#scale"),mood:document.querySelector("#mood")},scaleValue=document.querySelector("#scaleValue"),moodValue=document.querySelector("#moodValue");
 
@@ -53,10 +54,10 @@
     const kind=controls.behavior.value,mood=Number(controls.mood.value),scale=Number(controls.scale.value),appearance=app();scaleValue.textContent=`${scale.toFixed(2)}×`;moodValue.textContent=mood>.45?"delighted":mood>.1?"content":mood<-.45?"stressed":mood<-.1?"wary":"neutral";
     drawRoom(c,canvas.width,canvas.height);const xs=[100,280,460,640,820],floor=374;
     for(let i=0;i<5;i++){
-      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind);c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawIllustratedCat(c,p,appearance,poseFor(kind,t,i,mood),t);c.restore();
+      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind),artT=catArtTime(p,t);c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawIllustratedCat(c,p,appearance,poseFor(kind,artT,i,mood),t,false,artT);c.restore();
       c.fillStyle="rgba(79,58,42,.62)";c.font="600 11px ui-monospace,monospace";c.textAlign="center";c.fillText(`#${i+1}`,xs[i],floor+43);
     }
-    c.textAlign="left";c.fillStyle="rgba(78,58,43,.52)";c.font="11px ui-monospace,monospace";c.fillText(`${kind}  ·  ${appearance.markings}  ·  ${controls.seed.value||"cat"}`,18,494);
+    c.textAlign="left";c.fillStyle="rgba(78,58,43,.52)";c.font="11px ui-monospace,monospace";c.fillText(`${kind}  ·  ${appearance.markings}  ·  held-frame procedural art`,18,494);
   }
 
   const MOMENTS=["idle","loaf","sleep","groom","investigate","stretch","stalk","pounce","peek"];
@@ -64,8 +65,8 @@
     drawRoom(mc,momentCanvas.width,momentCanvas.height,1);const appearance=app(),cell=momentCanvas.width/MOMENTS.length;
     mc.fillStyle="rgba(92,65,46,.07)";for(let i=1;i<MOMENTS.length;i++)mc.fillRect(Math.round(i*cell),26,1,momentCanvas.height-52);
     MOMENTS.forEach((kind,i)=>{
-      const id=`${controls.seed.value||"cat"}-moment-${i+1}`,p=stateFor(id,.34,kind),x=cell*(i+.5),floor=213;
-      mc.save();mc.translate(x,floor);mc.scale(1.58,1.58);drawIllustratedCat(mc,p,appearance,poseFor(kind,t,i,.34),t);mc.restore();
+      const id=`${controls.seed.value||"cat"}-moment-${i+1}`,p=stateFor(id,.34,kind),artT=catArtTime(p,t),x=cell*(i+.5),floor=213;
+      mc.save();mc.translate(x,floor);mc.scale(1.58,1.58);drawIllustratedCat(mc,p,appearance,poseFor(kind,artT,i,.34),t,false,artT);mc.restore();
       mc.fillStyle="#675341";mc.font="600 9px ui-monospace,monospace";mc.textAlign="center";mc.fillText((kind==="investigate"?"sniff":kind).toUpperCase(),x,274);
     });mc.textAlign="left";
   }
