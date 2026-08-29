@@ -104,14 +104,16 @@ test("transient cat feedback uses wall time and pixel effects",()=>{
   assert.match(renderer,/p\.behavior!=="seek_user"/);
 });
 
-test("cat lab ships the final motion compositor",()=>{
+test("cat lab ships the final motion compositor and held-art clock",()=>{
   const lab=join(root,"dist","cat-lab.html");
   assert.ok(existsSync(lab),"dist/cat-lab.html should be copied during npm run build");
   const html=readFileSync(lab,"utf8");
   assert.match(html,/drawIllustratedCat/);
   assert.match(html,/Procedural Cat Lab/);
   assert.match(html,/catMotion\.js/);
-  assert.match(html,/SHIPPED MOTION \+ ART/);
+  assert.match(html,/catCadence\.js/);
+  assert.match(html,/catArtTime/);
+  assert.match(html,/SHIPPED MOTION \+ ART \+ CADENCE/);
   assert.match(html,/loaf/);
   assert.match(html,/investigate/);
   assert.match(html,/stretch/);
