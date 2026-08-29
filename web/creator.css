@@ -1,0 +1,18 @@
+/* Cozy procedural pet creator. Kept separate so the desktop overlay remains visually quiet. */
+.creator-layout{align-items:stretch;gap:14px}
+.creator-form{min-width:0}.creator-form select{width:100%}
+.creator-preview-card{width:100%;display:grid;place-items:center;align-content:center;gap:7px;padding:10px;border-radius:16px;background:linear-gradient(155deg,rgba(244,221,190,.12),rgba(255,255,255,.025));border:1px solid rgba(244,218,183,.12);box-shadow:inset 0 1px rgba(255,255,255,.035)}
+#creator-preview{width:240px;max-width:100%;height:auto;border-radius:13px;background:radial-gradient(circle at 70% 18%,rgba(255,236,197,.22),transparent 42%),linear-gradient(#2c2927,#201e1f 72%,#29231f 72%);border:1px solid rgba(255,235,205,.1);image-rendering:pixelated;box-shadow:0 14px 28px rgba(0,0,0,.16),inset 0 -28px rgba(139,100,67,.07)}
+#creator-preview-caption{font:600 9px ui-monospace,monospace;letter-spacing:.035em;text-transform:uppercase;color:#a99a89;text-align:center}
+#creator-markings{background-color:#1b1d25}
+.creator-secondary{width:100%;margin-top:2px;background:rgba(224,167,105,.08);border-color:rgba(224,167,105,.18);color:#e8c99e;font-size:11px;font-weight:700}.creator-secondary:hover{background:rgba(224,167,105,.15);border-color:rgba(224,167,105,.3)}
+#creator-markings-note{padding:8px 10px;margin-top:8px!important;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);line-height:1.45}
+
+/* First-run creature reveal. */
+.onboarding-card-wide{max-width:500px;padding-top:30px}
+.onboarding-preview-wrap{display:grid;place-items:center;gap:6px;margin:-8px 0 18px;padding:8px;border-radius:18px;background:linear-gradient(155deg,rgba(239,205,163,.13),rgba(255,255,255,.025));border:1px solid rgba(247,220,185,.1)}
+.onboarding-preview-wrap canvas{display:block;width:min(300px,100%);height:auto;border-radius:13px;background:radial-gradient(circle at 70% 18%,rgba(255,235,190,.2),transparent 42%),linear-gradient(#292725,#201e1d 72%,#2c251f 72%);image-rendering:pixelated;border:1px solid rgba(255,235,205,.08);box-shadow:0 18px 36px rgba(0,0,0,.2),inset 0 -35px rgba(151,105,68,.07)}
+.onboarding-preview-wrap small{font:600 9px ui-monospace,monospace;letter-spacing:.035em;text-transform:uppercase;color:#a99a89;text-align:center}
+.onboarding-preview-small{margin-top:-10px;margin-bottom:14px}.onboarding-preview-small canvas{max-height:142px;object-fit:cover;object-position:center bottom}
+@media(max-height:760px){.onboarding-card-wide{padding-top:24px;padding-bottom:24px}.onboarding-preview-wrap canvas{max-height:145px;object-fit:cover;object-position:center bottom}.onboarding-species{margin-bottom:12px}.onboarding-card h2{margin-bottom:14px}}
+@media(min-width:350px){.creator-layout{display:grid;grid-template-columns:minmax(0,1fr) 150px}.creator-preview-card{min-width:0}#creator-preview{width:145px}.creator-form{min-width:0}}

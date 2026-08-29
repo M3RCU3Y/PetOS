@@ -1,0 +1,23 @@
+[package]
+name = "petos"
+version = "0.2.0"
+description = "A living-creature desktop simulation"
+authors = ["PetOS contributors"]
+edition = "2021"
+
+[lib]
+name = "petos_lib"
+# The desktop binary links the Rust library directly. Keeping a cdylib here
+# makes recent Rust GNU toolchains emit more than 65,535 PE exports on Windows.
+crate-type = ["staticlib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,50 @@
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>PetOS</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./creator.css"></head><body>
+<canvas id="pet-canvas" aria-label="PetOS pet world"></canvas><button id="settings-open" aria-label="Open PetOS settings">PetOS</button><div id="settings-backdrop"></div>
+<aside id="settings-panel" aria-label="PetOS settings"><header><div><span class="eyebrow">PETOS</span><h1>Living desktop</h1></div><button id="settings-close" aria-label="Close">×</button></header>
+<section><h2>World</h2><label class="toggle"><span>Pets enabled<small>Pause or resume the whole habitat</small></span><input id="enabled-toggle" type="checkbox"></label><label class="toggle"><span>Interaction mode<small>Lets clicks reach pets. Ctrl + Shift + P</small></span><input id="interaction-toggle" type="checkbox"></label><label class="toggle"><span>Debug mind<small>Show behavior and drive telemetry</small></span><input id="debug-toggle" type="checkbox"></label><label class="toggle"><span>Sounds<small>Species vocalizations and ambient effects</small></span><input id="sound-toggle" type="checkbox" checked></label><label class="stack"><span class="field-label">Volume</span><input id="sound-volume" type="range" min="0" max="1" step="0.05" value="0.7"></label><label class="toggle"><span>Quiet hours<small>No sounds between 22:00 and 08:00, or while gaming</small></span><input id="quiet-hours-toggle" type="checkbox"></label><label class="toggle"><span>Start with Windows<small>Launch PetOS when you log in</small></span><input id="autostart-toggle" type="checkbox"></label></section>
+<section><h2>Your pets</h2><div id="pet-list"></div><div class="stack"><select id="pack-select" aria-label="Pet type"></select><input id="pet-name" aria-label="Pet name" placeholder="Pet name"><button class="primary" id="add-pet">Add pet</button></div></section>
+<section><h2>Habitat</h2><p>Pick a piece of habitat furniture, then click the desktop to place it. Objects advertise real affordances: hungry pets seek food, tired pets learn beds, cats use scratchers, toys satisfy play.</p><div id="furniture-palette" class="button-grid habitat-grid"></div></section>
+<section><h2>Create a pet</h2><p>Build a one-of-a-kind companion from live procedural art, or borrow a real pet's palette from a photo.</p>
+<div class="creator-layout">
+<div class="creator-form">
+<div class="species-row" id="creator-species">
+<button data-species="cat" class="primary">🐈 Cat</button><button data-species="dog">🐕 Dog</button><button data-species="rabbit">🐇 Rabbit</button><button data-species="bird">🐦 Bird</button>
+</div>
+<label class="stack"><span class="field-label">Name</span><input id="creator-name" placeholder="Pet name" maxlength="24"></label>
+<label class="stack"><span class="field-label">Coat pattern</span><select id="creator-markings"><option value="tabby" selected>Tabby · soft stripes</option><option value="tuxedo">Tuxedo · bright bib</option><option value="patched">Patched · two-tone</option><option value="uniform">Uniform · clean coat</option></select></label>
+<div class="color-row">
+<label class="stack"><span class="field-label">Coat</span><input id="creator-coat" type="color" value="#d98742"></label>
+<label class="stack"><span class="field-label">Soft areas</span><input id="creator-accent" type="color" value="#f2c287"></label>
+<label class="stack"><span class="field-label">Eyes</span><input id="creator-eye" type="color" value="#d7ef76"></label>
+</div>
+<button id="creator-randomize" class="creator-secondary" type="button">↻ Shuffle a cozy look</button>
+</div>
+<div class="creator-preview-card"><canvas id="creator-preview" width="240" height="190" aria-label="Pet preview"></canvas><small id="creator-preview-caption">Live procedural preview</small></div>
+</div>
+<div id="creator-sliders"></div>
+<label class="file">Use a photo 📷<input id="creator-photo" type="file" accept="image/*"></label>
+<button class="primary" id="creator-create">Move in ✨</button>
+<p id="creator-markings-note" style="font-size:.75rem;opacity:.6">Pattern, palette, expression and motion are rendered live. No cat sprite sheet required.</p>
+</section>
+<section><h2>Focus companion</h2><p>Work in quiet stretches — your pets settle down with you, then come say hi on breaks.</p>
+<label class="stack"><span class="field-label">Session lengths (minutes)</span><div class="color-row"><label class="stack"><span class="field-label">Work</span><input id="focus-work" type="number" min="1" max="120" value="25"></label><label class="stack"><span class="field-label">Break</span><input id="focus-break" type="number" min="1" max="60" value="5"></label></div></label>
+<label class="toggle"><span>Focus mode<small>Pets stay calm while you work and visit during breaks</small></span><input id="focus-toggle" type="checkbox"></label>
+<p id="focus-status" style="font-size:.78rem;opacity:.7">Not running.</p></section>
+<section><h2>Social bonds</h2><p>Relationships grow from shared moments — cuddles build trust, scuffles build rivalry.</p><div id="social-graph"></div></section>
+<section><h2>Life log</h2><div id="diary-list" class="life-log"><p>Notable moments will appear here.</p></div></section>
+<section><h2>Life log · memories</h2><div id="life-log" class="life-log"><p>Your pets' memorable moments will appear here.</p></div></section>
+<section><h2>Pet packs</h2><p>Import a JSON pet pack. Appearance and personality are copied into the pet when created.</p><label class="file">Import .json<input id="pack-file" type="file" accept="application/json,.json"></label><div id="pack-list" class="pack-list"></div></section>
+<section><h2>Photo gallery</h2><p>Snapshots are kept locally on this device only.</p><button id="gallery-snap">📸 Take snapshot</button><div id="photo-gallery" class="photo-gallery"><p>No photos yet — press 📷 Photo below to take one.</p></div></section>
+<section><h2>Updates</h2><p>Point at any JSON manifest (<code>{"version":"x.y.z","notes":"…"}</code>) to enable checking. PetOS never auto-installs anything.</p>
+<label class="stack"><span class="field-label">Manifest URL</span><input id="update-url" placeholder="https://…/petos-latest.json" autocomplete="off"></label>
+<button id="update-check">Check for updates</button>
+<p id="update-status" style="font-size:.78rem;opacity:.7"></p></section>
+<section class="privacy"><h2>Privacy</h2><label class="stack"><span class="field-label">Perception level</span><select id="privacy-level"><option value="0">Blind · geometry only</option><option value="1">Ambient · app/activity context</option><option value="2">Context · reserved for local classification</option><option value="3">Vision · reserved, explicit opt-in</option></select></label><p><strong>The current alpha never captures screen pixels or keystrokes.</strong> Higher levels are capability boundaries for future Cortex providers, not hidden data collection.</p></section>
+<section><h2>Cortex <small style="opacity:.6">(optional AI inner voice)</small></h2><p>The Cortex occasionally suggests high-level intentions that surface as thought bubbles. It never controls movement. Everything works without it; enable a local or hosted model to add reflection. Keys are stored locally and only sent to the chosen provider.</p>
+<label class="stack"><span class="field-label">Provider</span><select id="cortex-provider"><option value="off">Off · built-in instincts only</option><option value="ollama">Ollama · local model (127.0.0.1:11434)</option><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option><option value="gemini">Google Gemini</option><option value="anthropic">Anthropic Claude</option></select></label>
+<div class="color-row">
+<label class="stack" style="flex:1"><span class="field-label">API key (hosted providers)</span><input id="cortex-key" type="password" placeholder="sk-… / key…" autocomplete="off"></label>
+<label class="stack" style="flex:1"><span class="field-label">Model override</span><input id="cortex-model" placeholder="provider default" autocomplete="off"></label>
+</div></section>
+<footer><span>PetOS alpha · creature first, mascot second.</span><div class="footer-actions"><button id="photo-btn">📷 Photo</button><button id="export-state">Export</button><button id="import-state">Import</button><button id="reset-state">Reset world</button></div></footer><input id="import-file" type="file" accept="application/json" style="display:none"></aside>
+<script type="module" src="./src/app/main.js"></script></body></html>

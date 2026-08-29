@@ -1,0 +1,50 @@
+{
+  "id": "cat-pixel",
+  "name": "Illustrated Cat",
+  "version": "1.1.0",
+  "species": "cat",
+  "author": "PetOS",
+  "description": "Code-generated illustrated sprite pack with layered shading and expressive motion.",
+  "appearance": {
+    "coat": "#d78a4f",
+    "accent": "#f2d1a3",
+    "eye": "#a7c96b",
+    "scale": 1,
+    "markings": "tabby",
+    "sheet": {
+      "src": "sheets/cat-sample.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "fps": 7,
+      "default": {
+        "row": 0,
+        "frames": 4
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": 4
+        },
+        "walk": {
+          "row": 1,
+          "frames": 6
+        },
+        "sleep": {
+          "row": 2,
+          "frames": 2,
+          "fps": 2
+        },
+        "run": {
+          "row": 3,
+          "frames": 6
+        }
+      }
+    }
+  },
+  "tags": [
+    "generated",
+    "illustrated",
+    "sprites",
+    "cat"
+  ]
+}

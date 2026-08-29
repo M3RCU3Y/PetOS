@@ -1,0 +1,49 @@
+{
+  "id": "dog-pixel",
+  "name": "Illustrated Dog",
+  "version": "1.1.0",
+  "species": "dog",
+  "author": "PetOS",
+  "description": "Code-generated illustrated sprite pack with layered shading and expressive motion.",
+  "appearance": {
+    "coat": "#b7824c",
+    "accent": "#ead2a7",
+    "eye": "#5a4635",
+    "scale": 1,
+    "sheet": {
+      "src": "sheets/dog-sample.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "fps": 7,
+      "default": {
+        "row": 0,
+        "frames": 4
+      },
+      "animations": {
+        "idle": {
+          "row": 0,
+          "frames": 4
+        },
+        "walk": {
+          "row": 1,
+          "frames": 6
+        },
+        "sleep": {
+          "row": 2,
+          "frames": 2,
+          "fps": 2
+        },
+        "run": {
+          "row": 3,
+          "frames": 6
+        }
+      }
+    }
+  },
+  "tags": [
+    "generated",
+    "illustrated",
+    "sprites",
+    "dog"
+  ]
+}

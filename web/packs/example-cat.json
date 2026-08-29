@@ -1,0 +1,11 @@
+{
+  "id": "community-midnight-cat",
+  "name": "Midnight",
+  "version": "1.0.0",
+  "species": "cat",
+  "author": "PetOS example",
+  "description": "Example community pack with a curious, calm personality.",
+  "appearance": { "coat": "#252735", "accent": "#d9d9e2", "eye": "#9ce0a7", "scale": 1 },
+  "personality": { "curiosity": 0.82, "playfulness": 0.62, "patience": 0.72 },
+  "tags": ["example", "cat"]
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PetOS · Cat Lab</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#17130f;color:#fffaf2}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 22% -10%,#59402d 0,#241b16 37%,#120f0d 100%);font-size:14px}body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;background-image:radial-gradient(rgba(255,240,216,.24) .55px,transparent .55px);background-size:5px 5px}main{width:min(1220px,calc(100% - 32px));margin:30px auto 64px}.mast{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:22px}.eyebrow{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#e0b885}.mast h1{margin:.36rem 0 .32rem;font-size:clamp(32px,5vw,60px);line-height:.92;letter-spacing:-.045em}.mast p{color:#c7b8a8;max-width:720px;line-height:1.55;margin:.45rem 0 0}.badge{white-space:nowrap;border:1px solid rgba(247,211,164,.18);background:rgba(255,239,219,.06);padding:9px 12px;border-radius:999px;color:#ddc5a8;font:600 10px ui-monospace,monospace;letter-spacing:.04em}.shell{display:grid;grid-template-columns:286px 1fr;gap:18px}.panel,.stage,.moments{background:linear-gradient(145deg,rgba(40,31,25,.94),rgba(23,19,17,.95));border:1px solid rgba(255,230,198,.1);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.035)}.panel{padding:18px;align-self:start;position:sticky;top:18px}.panel-title{display:flex;align-items:center;justify-content:space-between;margin:1px 0 17px}.panel-title strong{font-size:13px}.panel-title span{font-size:9px;color:#a99582;letter-spacing:.12em;text-transform:uppercase}label{display:grid;gap:7px;margin-bottom:13px;font-size:11px;color:#d7c9b9}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}select,input{width:100%;background:#15120f;color:#fff9ef;border:1px solid rgba(255,231,202,.11);border-radius:11px;padding:10px;outline:none}select:focus,input:focus{border-color:rgba(227,179,119,.46);box-shadow:0 0 0 3px rgba(211,157,97,.08)}input[type=color]{padding:3px;height:42px}.hint{font-size:10.5px;line-height:1.5;color:#938678;margin-top:10px;padding:11px;border-radius:12px;background:rgba(255,236,210,.035)}.stage{padding:15px;min-width:0}.stage-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:2px 6px 13px}.stage-head strong{font-size:13px}.pill{font:600 9px ui-monospace,monospace;background:#33271f;padding:6px 9px;border-radius:999px;color:#d9b88f;border:1px solid rgba(255,221,180,.08)}.canvas-wrap{overflow:hidden;border-radius:18px;position:relative;background:#e8dbc6;box-shadow:inset 0 0 0 1px rgba(75,51,33,.08)}canvas{width:100%;height:auto;display:block}.legend{display:flex;gap:14px;flex-wrap:wrap;padding:12px 4px 2px;font-size:10px;color:#92877b}.dot{width:6px;height:6px;border-radius:50%;display:inline-block;background:#dca669;margin-right:5px;vertical-align:1px}.moments{margin-top:18px;padding:15px}.moments-head{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:2px 5px 13px}.moments-head h2{font-size:15px;margin:0}.moments-head p{font-size:10.5px;color:#93877a;margin:3px 0 0}.moments-wrap{overflow:hidden;border-radius:18px;background:#eadfcd;box-shadow:inset 0 0 0 1px rgba(75,51,33,.07)}.footnote{padding:11px 5px 0;color:#776e65;font-size:9.5px;font-family:ui-monospace,monospace}@media(max-width:850px){.mast{align-items:flex-start;flex-direction:column}.shell{grid-template-columns:1fr}.panel{position:static;display:grid;grid-template-columns:1fr 1fr;gap:0 11px}.panel-title,.panel .wide{grid-column:1/-1}.badge{display:none}}@media(max-width:520px){main{width:min(100% - 18px,1220px);margin-top:18px}.panel{display:block}}
+  </style>
+</head>
+<body><main>
+  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Cozy Cat Lab</h1><p>The actual authored pixel cats used by PetOS: rounded anatomy, expressive faces, distinct coats, and baseline-locked eight-frame animation inspired by the reference.</p></div><div class="badge">8-FRAME LOOPS · ZERO WARPING</div></header>
+  <div class="shell">
+    <section class="panel">
+      <div class="panel-title"><strong>Art direction</strong><span>live controls</span></div>
+      <label>Moment<select id="behavior"><option>idle</option><option>loaf</option><option>walk</option><option>run</option><option>sit</option><option>sleep</option><option>investigate</option><option>stretch</option><option>stalk</option><option>pounce</option><option>startle</option><option>groom</option><option>eat</option><option>drink</option><option>climb</option><option>hang</option><option>peek</option></select></label>
+      <label>Coat pattern<select id="markings"><option>tabby</option><option>tuxedo</option><option>patched</option><option>uniform</option></select></label>
+      <div class="row wide"><label>Coat<input id="coat" type="color" value="#d48748"></label><label>Soft areas<input id="accent" type="color" value="#f0c895"></label></div>
+      <label>Eyes<input id="eye" type="color" value="#a9bf6b"></label>
+      <label class="wide">Cat family seed<input id="seed" value="cozy-neko" maxlength="32"></label>
+      <label class="wide">Display scale <span id="scaleValue">1.45×</span><input id="scale" type="range" min="0.85" max="1.9" step="0.05" value="1.45"></label>
+      <label class="wide">Mood <span id="moodValue">content</span><input id="mood" type="range" min="-1" max="1" step="0.05" value="0.35"></label>
+      <div class="hint wide">Idle and locomotion now come from coherent eight-frame loops. The renderer swaps native frames at a fixed cadence without rotating, stretching, or rescaling the artwork.</div>
+    </section>
+    <section class="stage">
+      <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">SHIPPED SPRITES + MOTION + CADENCE</span></div>
+      <div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div>
+      <div class="legend"><span><i class="dot"></i>eight coherent frames</span><span><i class="dot"></i>locked foot baseline</span><span><i class="dot"></i>per-cat phase offsets</span><span><i class="dot"></i>no raster warping</span><span><i class="dot"></i>separate ground shadow</span></div>
+    </section>
+  </div>
+  <section class="moments"><div class="moments-head"><div><h2>Cat moments board</h2><p>The small poses that make the cat feel like it is simply living on your desktop.</p></div><span class="pill">REGRESSION STRIP</span></div><div class="moments-wrap"><canvas id="moments" width="1160" height="310"></canvas></div><div class="footnote">idle · loaf · sleep · groom · sniff · stretch · stalk · pounce · peek</div></section>
+</main>
+<script type="module">
+  import { drawIllustratedCat } from "./src/app/catMotion.js";
+  import { drawCozyCatSprite, preloadCozyCatSprites } from "./src/app/cozyCatSprites.js";
+  import { catArtTime } from "./src/app/catCadence.js";
+  const canvas=document.querySelector("#preview"),c=canvas.getContext("2d"),momentCanvas=document.querySelector("#moments"),mc=momentCanvas.getContext("2d");
+  const controls={behavior:document.querySelector("#behavior"),markings:document.querySelector("#markings"),coat:document.querySelector("#coat"),accent:document.querySelector("#accent"),eye:document.querySelector("#eye"),seed:document.querySelector("#seed"),scale:document.querySelector("#scale"),mood:document.querySelector("#mood")},scaleValue=document.querySelector("#scaleValue"),moodValue=document.querySelector("#moodValue");
+
+  function drawRoom(ctx,w,h,variant=0){
+    ctx.fillStyle=variant?"#e9ddca":"#eadfce";ctx.fillRect(0,0,w,h);
+    const glow=ctx.createRadialGradient(w*.76,h*.08,8,w*.76,h*.08,w*.52);glow.addColorStop(0,"rgba(255,245,207,.72)");glow.addColorStop(1,"rgba(255,245,207,0)");ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle="#d7c6ae";ctx.fillRect(0,h*.71,w,h*.29);ctx.fillStyle="rgba(111,82,57,.08)";ctx.fillRect(0,h*.71,w,2);
+    ctx.fillStyle="#aa805d";ctx.fillRect(w*.055,h*.19,w*.19,5);ctx.fillStyle="#c49972";ctx.fillRect(w*.08,h*.115,8,h*.075);ctx.fillRect(w*.18,h*.135,11,h*.055);
+    ctx.fillStyle="#8f9871";ctx.beginPath();ctx.ellipse(w*.89,h*.57,17,37,-.45,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(w*.925,h*.58,15,33,.5,0,Math.PI*2);ctx.fill();ctx.fillStyle="#a97856";ctx.fillRect(w*.885,h*.64,47,28);
+    ctx.fillStyle="rgba(99,71,50,.055)";for(let x=28;x<w;x+=58){ctx.fillRect(x,h*.73,1,h*.27);}
+  }
+
+  function poseFor(kind,t,i,mood){
+    const moving=kind==="walk"||kind==="run",fast=kind==="run",phase=t/(fast?92:150)+i*.8,happy=mood>.15,stressed=mood<-.35||kind==="startle",feeding=kind==="eat"||kind==="drink",investigating=kind==="investigate",stretching=kind==="stretch",quiet=kind==="stalk"||investigating||stretching;
+    return{lying:kind==="sleep",sitting:kind==="sit"||kind==="groom",vertical:kind==="climb",hanging:kind==="hang",peeking:kind==="peek",crouch:kind==="stalk"?.86:kind==="pounce"?.95:feeding?.32:investigating?.38:stretching?.12:0,bow:stretching?1:0,arch:kind==="startle"?1:0,headDip:feeding?.85:investigating?.72:stretching?.12:0,headBob:feeding?Math.sin(t/170)*2:investigating?Math.sin(t/360)*.48:kind==="groom"?Math.sin(t/150)*2.5:0,eyeOpen:kind==="sleep"?0:kind==="groom"?.72:stretching?.78:1,pupilX:Math.sin(t/1700+i)*.28,pupilY:Math.sin(t/2300+i*.4)*.12,earBack:stressed?.8:0,earTwitch:((t/2400+i*.31)%1)<.055?2:0,tailLift:kind==="stalk"?-.42:investigating?.12:stretching?.58:happy?.85:stressed?-.75:.25,tailWagAmp:kind==="stalk"?1.25:investigating?1.4:stretching?2:happy?6:3,tailFast:quiet?false:kind==="run"||happy,gait:phase,legAmp:moving?(fast?4.2:3):0,bounce:moving?Math.abs(Math.sin(phase))*(fast?2.3:1.4):0,puff:kind==="startle",carry:false,pawReach:0,grooming:kind==="groom",licking:kind==="groom"||kind==="drink",pouncing:kind==="pounce",loaf:kind==="loaf"};
+  }
+  function stateFor(id,mood,kind){return{id,name:id,species:"cat",behavior:kind==="loaf"?"idle":kind,behaviorSinceMs:0,lastInteractionMs:-1e9,body:{position:{x:0,y:0},velocity:{x:kind==="run"?160:kind==="walk"?65:0,y:0},facing:1,grounded:!(["pounce","hang","climb"].includes(kind)),held:false},affect:{valence:mood,arousal:kind==="loaf"?.12:Math.max(.15,Math.abs(mood)),stress:Math.max(0,-mood)},drives:{fatigue:.2,play:.4}};}
+  function app(){return{coat:controls.coat.value,accent:controls.accent.value,eye:controls.eye.value,scale:1,markings:controls.markings.value};}
+  const showcase=[
+    {coat:"#d48748",accent:"#f0c895",eye:"#a9bf6b",scale:1,markings:"tabby"},
+    {coat:"#8b8d92",accent:"#e8dfd1",eye:"#86aa79",scale:1,markings:"tabby"},
+    {coat:"#eadfc8",accent:"#705447",eye:"#70b9e8",scale:1,markings:"patched"},
+    {coat:"#6d6763",accent:"#eee8dd",eye:"#d6a567",scale:1,markings:"tuxedo"},
+    {coat:"#c98a55",accent:"#f0d2ae",eye:"#9bbd69",scale:1,markings:"patched"}
+  ];
+  function drawShippedCat(ctx,p,appearance,pose,t,artT){if(!drawCozyCatSprite(ctx,p,appearance,pose,t,artT))drawIllustratedCat(ctx,p,appearance,pose,t,false,artT);}
+
+  function renderMain(t){
+    const kind=controls.behavior.value,mood=Number(controls.mood.value),scale=Number(controls.scale.value),appearance=app();scaleValue.textContent=`${scale.toFixed(2)}×`;moodValue.textContent=mood>.45?"delighted":mood>.1?"content":mood<-.45?"stressed":mood<-.1?"wary":"neutral";
+    drawRoom(c,canvas.width,canvas.height);const xs=[100,280,460,640,820],floor=374;
+    for(let i=0;i<5;i++){
+      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind),artT=catArtTime(p,t),catAppearance=i===0?appearance:showcase[i];c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawShippedCat(c,p,catAppearance,poseFor(kind,artT,i,mood),t,artT);c.restore();
+      c.fillStyle="rgba(79,58,42,.62)";c.font="600 11px ui-monospace,monospace";c.textAlign="center";c.fillText(`#${i+1}`,xs[i],floor+43);
+    }
+    c.textAlign="left";c.fillStyle="rgba(78,58,43,.52)";c.font="11px ui-monospace,monospace";c.fillText(`${kind}  ·  orange tabby / silver tabby / fluffy colorpoint  ·  authored held-frame art`,18,494);
+  }
+
+  const MOMENTS=["idle","loaf","sleep","groom","investigate","stretch","stalk","pounce","peek"];
+  function renderMoments(t){
+    drawRoom(mc,momentCanvas.width,momentCanvas.height,1);const appearance=app(),cell=momentCanvas.width/MOMENTS.length;
+    mc.fillStyle="rgba(92,65,46,.07)";for(let i=1;i<MOMENTS.length;i++)mc.fillRect(Math.round(i*cell),26,1,momentCanvas.height-52);
+    MOMENTS.forEach((kind,i)=>{
+      const id=`${controls.seed.value||"cat"}-moment-${i+1}`,p=stateFor(id,.34,kind),artT=catArtTime(p,t),x=cell*(i+.5),floor=213;
+      mc.save();mc.translate(x,floor);mc.scale(1.05,1.05);drawShippedCat(mc,p,showcase[i%showcase.length]||appearance,poseFor(kind,artT,i,.34),t,artT);mc.restore();
+      mc.fillStyle="#675341";mc.font="600 9px ui-monospace,monospace";mc.textAlign="center";mc.fillText((kind==="investigate"?"sniff":kind).toUpperCase(),x,274);
+    });mc.textAlign="left";
+  }
+
+  preloadCozyCatSprites();
+  function frame(t){renderMain(t);renderMoments(t);requestAnimationFrame(frame);}requestAnimationFrame(frame);
+</script></body></html>

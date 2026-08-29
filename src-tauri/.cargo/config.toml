@@ -1,0 +1,13 @@
+# PetOS native build configuration.
+#
+# The repository may live under a path containing spaces (e.g. "VS Code 2").
+# The MinGW `windres` resource compiler used by the windows-gnu toolchain
+# fails to quote such paths when preprocessing the Tauri resource script,
+# breaking every build. Pointing the cargo target directory at a space-free
+# location keeps all build-script outputs (including resource.rc) on a safe
+# path so windres succeeds.
+#
+# If this project moves somewhere without spaces, or you build with the
+# stable-x86_64-pc-windows-msvc toolchain, you can delete this file.
+[build]
+target-dir = "C:\\Users\\brand\\AppData\\Local\\PetOS-target"

@@ -1,0 +1,23 @@
+{
+  "name": "petos",
+  "version": "0.2.0",
+  "private": true,
+  "description": "PetOS: a living-creature simulation that inhabits your desktop.",
+  "type": "module",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && tsc -p tsconfig.json && node scripts/make-sample-sheets.mjs && node scripts/copy-static.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "demo": "npm run build && node dist/src/demo.js",
+    "dev:web": "npm run build && node scripts/serve.mjs",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "@tauri-apps/cli": "^2.8.0"
+  }
+}
