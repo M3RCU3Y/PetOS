@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { drawIllustratedCat as drawBaseCat } from "../dist/src/app/illustratedCat.js";
 import { drawIllustratedCat as drawCozyCat } from "../dist/src/app/cozyCatRaster.js";
 import { drawIllustratedCat as drawMotionCat } from "../dist/src/app/catMotion.js";
+import { catArtTime } from "../dist/src/app/catCadence.js";
 
 const root=join(import.meta.dirname,"..");
 const source=(...parts)=>readFileSync(join(root,...parts),"utf8");
@@ -13,6 +14,25 @@ test("illustrated cat renderers are part of the compiled app",()=>{
   assert.equal(typeof drawBaseCat,"function");
   assert.equal(typeof drawCozyCat,"function");
   assert.equal(typeof drawMotionCat,"function");
+  assert.equal(typeof catArtTime,"function");
+});
+
+test("procedural cats use held sprite cadence while motion timing stays smooth",()=>{
+  const idle={id:"cadence-idle",behavior:"idle",body:{velocity:{x:0,y:0},grounded:true}};
+  const walk={id:"cadence-walk",behavior:"walk",body:{velocity:{x:75,y:0},grounded:true}};
+  const run={id:"cadence-run",behavior:"run",body:{velocity:{x:240,y:0},grounded:true}};
+  const countFrames=p=>new Set(Array.from({length:1000},(_,t)=>catArtTime(p,t))).size;
+  assert.ok(countFrames(idle)>=8&&countFrames(idle)<=9);
+  assert.ok(countFrames(walk)>=10&&countFrames(walk)<=11);
+  assert.ok(countFrames(run)>=12&&countFrames(run)<=13);
+  assert.notEqual(catArtTime(idle,1234),catArtTime({...idle,id:"cadence-idle-b"},1234));
+  const cadence=source("src","app","catCadence.ts"),motion=source("src","app","catMotion.ts"),renderer=source("src","app","renderer.ts");
+  assert.match(cadence,/art-clock/);
+  assert.match(cadence,/return 8/);
+  assert.match(motion,/artT=t/);
+  assert.match(motion,/drawPose\(c,p,a,pose,artT\)/);
+  assert.match(renderer,/catArtTime\(p,t,reducedMotion\)/);
+  assert.match(renderer,/drawIllustratedCat\(c,p,art,pose,t,reducedMotion,artT\)/);
 });
 
 test("illustrated cats keep the cozy pixel-painted rendering contract",()=>{
