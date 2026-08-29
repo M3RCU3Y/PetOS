@@ -50,15 +50,22 @@ test("illustrated cats keep the cozy pixel-painted rendering contract",()=>{
   assert.match(renderer,/ILLUSTRATED_CAT_SCALE=1\.23/);
 });
 
-test("authored locomotion uses held walk frames and a dedicated pounce silhouette",()=>{
+test("authored locomotion uses baseline-locked eight-frame loops without raster warping",()=>{
   const cat=source("src","app","illustratedCat.ts"),sprites=source("src","app","cozyCatSprites.ts");
   assert.match(cat,/pawX=x\+stride/);
   assert.match(cat,/vy=p\.body\.velocity\.y/);
   assert.match(cat,/foreReach=1-launch\*\.28\+descent\*\.08/);
   assert.match(cat,/hindTuck=launch\*\.52/);
-  assert.match(sprites,/Math\.floor\(t\/105\)%4,row:1/);
+  assert.match(sprites,/MOTION_FRAMES=8/);
+  assert.match(sprites,/IDLE_INTERVAL_MS=125/);
+  assert.match(sprites,/speed>110\?82:105/);
+  assert.match(sprites,/motionSheetUrls/);
+  assert.match(sprites,/hashPhase/);
+  assert.doesNotMatch(sprites,/applyMotion/);
+  assert.doesNotMatch(sprites,/c\.rotate\(/);
   assert.match(sprites,/pose\.pouncing&&!p\.body\.grounded/);
   assert.match(sprites,/col:3,row:3/);
+  assert.match(sprites,/reducedMotion/);
 });
 
 test("pose changes use anticipation, one pounce landing and recovery",()=>{

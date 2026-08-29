@@ -12,6 +12,7 @@ from PIL import Image
 COLS = 4
 ROWS = 4
 FRAME = 96
+MOTION_FRAMES = 8
 
 
 def is_background(pixel: tuple[int, int, int, int]) -> bool:
@@ -98,6 +99,55 @@ def keep_largest_sprite(frame: Image.Image) -> Image.Image:
     return cleaned
 
 
+def extract_motion_frames(source: Path) -> list[Image.Image]:
+    """Extract an eight-slot generated strip with one shared scale and baseline."""
+    cleaned = extract_alpha(Image.open(source))
+    width, height = cleaned.size
+    sprites: list[Image.Image] = []
+    boxes: list[tuple[int, int, int, int]] = []
+    for index in range(MOTION_FRAMES):
+        left = round(index * width / MOTION_FRAMES)
+        right = round((index + 1) * width / MOTION_FRAMES)
+        sprite = keep_largest_sprite(cleaned.crop((left, 0, right, height)))
+        box = sprite.getchannel("A").getbbox()
+        if box is None:
+            raise ValueError(f"empty motion frame {index} in {source}")
+        sprites.append(sprite)
+        boxes.append(box)
+
+    max_width = max(right - left for left, _, right, _ in boxes)
+    max_height = max(bottom - top for _, top, _, bottom in boxes)
+    shared_scale = min((FRAME - 10) / max_width, (FRAME - 10) / max_height)
+    output: list[Image.Image] = []
+    for sprite, box in zip(sprites, boxes):
+        cropped = sprite.crop(box)
+        target = (
+            max(1, round(cropped.width * shared_scale)),
+            max(1, round(cropped.height * shared_scale)),
+        )
+        resized = cropped.resize(target, Image.Resampling.LANCZOS)
+        alpha = resized.getchannel("A").point(lambda value: 0 if value < 28 else 255 if value > 224 else value)
+        colors = resized.convert("RGB").quantize(colors=72, method=Image.Quantize.FASTOCTREE).convert("RGB")
+        colors.putalpha(alpha)
+        frame = Image.new("RGBA", (FRAME, FRAME), (0, 0, 0, 0))
+        x = round((FRAME - colors.width) / 2)
+        y = FRAME - 5 - colors.height
+        frame.alpha_composite(colors, (x, y))
+        output.append(frame)
+    return output
+
+
+def process_motion(idle_source: Path, walk_source: Path, destination: Path) -> None:
+    sheet = Image.new("RGBA", (MOTION_FRAMES * FRAME, 2 * FRAME), (0, 0, 0, 0))
+    for row, source in enumerate((idle_source, walk_source)):
+        for column, frame in enumerate(extract_motion_frames(source)):
+            sheet.alpha_composite(frame, (column * FRAME, row * FRAME))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(destination, optimize=True)
+    visible = sum(1 for alpha in sheet.getchannel("A").get_flattened_data() if alpha)
+    print(f"wrote {destination} ({sheet.width}x{sheet.height}, {visible} visible pixels)")
+
+
 def process(source: Path, destination: Path) -> None:
     cleaned = extract_alpha(Image.open(source))
     width, height = cleaned.size
@@ -126,8 +176,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
+    parser.add_argument("--walk-source", type=Path)
     args = parser.parse_args()
-    process(args.source, args.destination)
+    if args.walk_source:
+        process_motion(args.source, args.walk_source, args.destination)
+    else:
+        process(args.source, args.destination)
 
 
 if __name__ == "__main__":

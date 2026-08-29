@@ -7,7 +7,7 @@
   </style>
 </head>
 <body><main>
-  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Cozy Cat Lab</h1><p>The actual authored pixel cats used by PetOS: rounded anatomy, expressive faces, distinct coats, crisp transparent edges, and held-frame motion inspired by the reference.</p></div><div class="badge">AUTHORED SPRITES · HELD-FRAME MOTION</div></header>
+  <header class="mast"><div><div class="eyebrow">PETOS · CREATURE ART BENCH</div><h1>Cozy Cat Lab</h1><p>The actual authored pixel cats used by PetOS: rounded anatomy, expressive faces, distinct coats, and baseline-locked eight-frame animation inspired by the reference.</p></div><div class="badge">8-FRAME LOOPS · ZERO WARPING</div></header>
   <div class="shell">
     <section class="panel">
       <div class="panel-title"><strong>Art direction</strong><span>live controls</span></div>
@@ -18,12 +18,12 @@
       <label class="wide">Cat family seed<input id="seed" value="cozy-neko" maxlength="32"></label>
       <label class="wide">Display scale <span id="scaleValue">1.45×</span><input id="scale" type="range" min="0.85" max="1.9" step="0.05" value="1.45"></label>
       <label class="wide">Mood <span id="moodValue">content</span><input id="mood" type="range" min="-1" max="1" step="0.05" value="0.35"></label>
-      <div class="hint wide">Switch moments while the cats are moving. This bench uses the exact sprite sheets and held-frame clock that ship in the desktop pet.</div>
+      <div class="hint wide">Idle and locomotion now come from coherent eight-frame loops. The renderer swaps native frames at a fixed cadence without rotating, stretching, or rescaling the artwork.</div>
     </section>
     <section class="stage">
       <div class="stage-head"><strong>Five cats · same moment</strong><span class="pill">SHIPPED SPRITES + MOTION + CADENCE</span></div>
       <div class="canvas-wrap"><canvas id="preview" width="920" height="520"></canvas></div>
-      <div class="legend"><span><i class="dot"></i>authored pixel sprites</span><span><i class="dot"></i>three coat families</span><span><i class="dot"></i>8–12 fps sprite cadence</span><span><i class="dot"></i>transparent edges</span><span><i class="dot"></i>procedural fallback for climbing</span></div>
+      <div class="legend"><span><i class="dot"></i>eight coherent frames</span><span><i class="dot"></i>locked foot baseline</span><span><i class="dot"></i>per-cat phase offsets</span><span><i class="dot"></i>no raster warping</span><span><i class="dot"></i>separate ground shadow</span></div>
     </section>
   </div>
   <section class="moments"><div class="moments-head"><div><h2>Cat moments board</h2><p>The small poses that make the cat feel like it is simply living on your desktop.</p></div><span class="pill">REGRESSION STRIP</span></div><div class="moments-wrap"><canvas id="moments" width="1160" height="310"></canvas></div><div class="footnote">idle · loaf · sleep · groom · sniff · stretch · stalk · pounce · peek</div></section>
@@ -57,13 +57,13 @@
     {coat:"#6d6763",accent:"#eee8dd",eye:"#d6a567",scale:1,markings:"tuxedo"},
     {coat:"#c98a55",accent:"#f0d2ae",eye:"#9bbd69",scale:1,markings:"patched"}
   ];
-  function drawShippedCat(ctx,p,appearance,pose,t){if(!drawCozyCatSprite(ctx,p,appearance,pose,t))drawIllustratedCat(ctx,p,appearance,pose,t,false,t);}
+  function drawShippedCat(ctx,p,appearance,pose,t,artT){if(!drawCozyCatSprite(ctx,p,appearance,pose,t,artT))drawIllustratedCat(ctx,p,appearance,pose,t,false,artT);}
 
   function renderMain(t){
     const kind=controls.behavior.value,mood=Number(controls.mood.value),scale=Number(controls.scale.value),appearance=app();scaleValue.textContent=`${scale.toFixed(2)}×`;moodValue.textContent=mood>.45?"delighted":mood>.1?"content":mood<-.45?"stressed":mood<-.1?"wary":"neutral";
     drawRoom(c,canvas.width,canvas.height);const xs=[100,280,460,640,820],floor=374;
     for(let i=0;i<5;i++){
-      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind),artT=catArtTime(p,t),catAppearance=i===0?appearance:showcase[i];c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawShippedCat(c,p,catAppearance,poseFor(kind,artT,i,mood),artT);c.restore();
+      const id=`${controls.seed.value||"cat"}-${i+1}`,p=stateFor(id,mood,kind),artT=catArtTime(p,t),catAppearance=i===0?appearance:showcase[i];c.save();c.translate(xs[i],floor);c.scale(scale,scale);drawShippedCat(c,p,catAppearance,poseFor(kind,artT,i,mood),t,artT);c.restore();
       c.fillStyle="rgba(79,58,42,.62)";c.font="600 11px ui-monospace,monospace";c.textAlign="center";c.fillText(`#${i+1}`,xs[i],floor+43);
     }
     c.textAlign="left";c.fillStyle="rgba(78,58,43,.52)";c.font="11px ui-monospace,monospace";c.fillText(`${kind}  ·  orange tabby / silver tabby / fluffy colorpoint  ·  authored held-frame art`,18,494);
@@ -75,7 +75,7 @@
     mc.fillStyle="rgba(92,65,46,.07)";for(let i=1;i<MOMENTS.length;i++)mc.fillRect(Math.round(i*cell),26,1,momentCanvas.height-52);
     MOMENTS.forEach((kind,i)=>{
       const id=`${controls.seed.value||"cat"}-moment-${i+1}`,p=stateFor(id,.34,kind),artT=catArtTime(p,t),x=cell*(i+.5),floor=213;
-      mc.save();mc.translate(x,floor);mc.scale(1.05,1.05);drawShippedCat(mc,p,showcase[i%showcase.length]||appearance,poseFor(kind,artT,i,.34),artT);mc.restore();
+      mc.save();mc.translate(x,floor);mc.scale(1.05,1.05);drawShippedCat(mc,p,showcase[i%showcase.length]||appearance,poseFor(kind,artT,i,.34),t,artT);mc.restore();
       mc.fillStyle="#675341";mc.font="600 9px ui-monospace,monospace";mc.textAlign="center";mc.fillText((kind==="investigate"?"sniff":kind).toUpperCase(),x,274);
     });mc.textAlign="left";
   }

@@ -11,6 +11,9 @@ PASS — no P0, P1, or P2 visual findings remain for the requested grounded cat 
 - Image fidelity: the shipped cats now use real authored transparent raster sheets rather than code-drawn approximations. Silhouettes match the reference direction: compact bodies, short legs, large heads, lifted fluffy tails, three-quarter view, outlined faces, and readable breed markings.
 - Coat variety: orange tabby, silver/gray tabby, and fluffy cream colorpoint families are visibly distinct and correspond to the range shown in the reference.
 - Motion/state coverage: held frames cover idle, walk/run, sit, loaf, sleep, groom, investigate, stretch, stalk, pounce, and peek. The live renderer uses these same assets.
+- Motion quality: every coat family now has a dedicated 768 × 192 motion sheet containing eight coherent idle frames and eight coherent locomotion frames. Idle advances at 125 ms per frame; locomotion uses 105 ms walk and 82 ms run cadence.
+- Stability: all generated frames are normalized with one shared scale, centered consistently, and placed on the same fixed foot baseline. The authored sprite path performs no whole-raster rotation, squash/stretch, or breathing transform.
+- Timing: stable per-cat phase offsets prevent synchronized loops. Reduced-motion mode freezes each cat on a stable phase frame.
 - Asset cleanup: disconnected checkerboard remnants, shadows, and neighboring-frame fragments were removed per frame. Alpha edges are clean and there are no halos or stray shapes in the live desktop capture.
 - Scale/crop: the desktop cat reads at the same small collectible-pet scale as the reference without clipping. The Cat Lab keeps all five showcase cats separated at its desktop breakpoint.
 - Interaction: moment selection updates the active pose; coat and color controls remain keyboard-focusable native controls; console QA reported no errors.

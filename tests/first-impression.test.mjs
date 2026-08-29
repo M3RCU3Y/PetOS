@@ -55,6 +55,6 @@ test("illustrated transient effects stay in the pixel-art language",()=>{
   assert.match(renderer,/drawPixelBang/);
   assert.doesNotMatch(renderer,/fillText\("z"/);
   assert.doesNotMatch(renderer,/fillText\("!"/);
-  assert.match(renderer,/drawCozyCatSprite\(c,p,art,pose,artT\)/);
+  assert.match(renderer,/drawCozyCatSprite\(c,p,art,pose,t,artT,reducedMotion\)/);
   assert.match(renderer,/drawIllustratedCat\(c,p,art,pose,t,reducedMotion,artT\)/);
 });

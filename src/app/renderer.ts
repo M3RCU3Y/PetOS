@@ -94,9 +94,10 @@ function paintIllustratedCat(c:CanvasRenderingContext2D,p:PetState,a:PetAppearan
   if(pleased&&p.body.grounded){sx*=1.012;sy*=.992;}
   const nuzzle=pleased?smoothstep(clamp(1-touchAge/1100))*Math.sin(clamp(touchAge/1100)*Math.PI)*1.7:0;
   const visualScale=art.scale*ILLUSTRATED_CAT_SCALE;
-  c.save();c.translate(Math.round(pos.x)+p.body.facing*nuzzle,Math.round(pos.y)-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);
-  if(!drawCozyCatSprite(c,p,art,pose,artT))drawIllustratedCat(c,p,art,pose,t,reducedMotion,artT);
-  c.restore();
+  const x=Math.round(pos.x)+p.body.facing*nuzzle,y=Math.round(pos.y);
+  c.save();c.translate(x,y);c.scale(p.body.facing*visualScale,visualScale);
+  const authored=drawCozyCatSprite(c,p,art,pose,t,artT,reducedMotion);c.restore();
+  if(!authored){c.save();c.translate(x,y-nuzzle*.2);c.scale(p.body.facing*sx*visualScale,sy*visualScale);drawIllustratedCat(c,p,art,pose,t,reducedMotion,artT);c.restore();}
 }
 
 function drawCatShadow(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pos:Vec2):void{

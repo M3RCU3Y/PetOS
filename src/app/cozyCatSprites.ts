@@ -3,16 +3,25 @@ import type { IllustratedCatPose } from "./illustratedCat.js";
 
 const FRAME=96;
 const DRAW_SIZE=72;
+const MOTION_FRAMES=8;
+const IDLE_INTERVAL_MS=125;
 
 type SheetKind="orange"|"gray"|"colorpoint";
 type SheetAsset={image:HTMLImageElement|null;loaded:boolean};
+type SpriteFrame={col:number;row:number};
 
 const sheetUrls:Record<SheetKind,string>={
   orange:new URL("../../sheets/cozy-orange-tabby.png",import.meta.url).href,
   gray:new URL("../../sheets/cozy-gray-tabby.png",import.meta.url).href,
   colorpoint:new URL("../../sheets/cozy-colorpoint.png",import.meta.url).href
 };
+const motionSheetUrls:Record<SheetKind,string>={
+  orange:new URL("../../sheets/cozy-orange-tabby-motion.png",import.meta.url).href,
+  gray:new URL("../../sheets/cozy-gray-tabby-motion.png",import.meta.url).href,
+  colorpoint:new URL("../../sheets/cozy-colorpoint-motion.png",import.meta.url).href
+};
 const sheets:Record<SheetKind,SheetAsset>={orange:{image:null,loaded:false},gray:{image:null,loaded:false},colorpoint:{image:null,loaded:false}};
+const motionSheets:Record<SheetKind,SheetAsset>={orange:{image:null,loaded:false},gray:{image:null,loaded:false},colorpoint:{image:null,loaded:false}};
 let requested=false;
 
 function requestSheets():void{
@@ -21,6 +30,9 @@ function requestSheets():void{
     const image=new Image();sheets[kind].image=image;
     image.addEventListener("load",()=>{sheets[kind].loaded=true;},{once:true});
     image.src=sheetUrls[kind];
+    const motionImage=new Image();motionSheets[kind].image=motionImage;
+    motionImage.addEventListener("load",()=>{motionSheets[kind].loaded=true;},{once:true});
+    motionImage.src=motionSheetUrls[kind];
   }
 }
 
@@ -38,7 +50,9 @@ function sheetFor(a:PetAppearance):SheetKind{
   return"orange";
 }
 
-function frameFor(p:PetState,pose:IllustratedCatPose,t:number):{col:number;row:number}{
+function hashPhase(id:string):number{let hash=2166136261;for(const char of id){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}return(hash>>>0)%4;}
+
+function frameFor(p:PetState,pose:IllustratedCatPose,t:number):SpriteFrame{
   if(pose.peeking)return{col:2,row:0};
   if(pose.pouncing&&!p.body.grounded)return{col:3,row:3};
   if(pose.lying)return{col:2,row:2};
@@ -47,16 +61,27 @@ function frameFor(p:PetState,pose:IllustratedCatPose,t:number):{col:number;row:n
   if(pose.pouncing||p.behavior==="stalk")return{col:2,row:3};
   if(p.behavior==="stretch")return{col:1,row:3};
   if(["investigate","eat","drink","scratch","play_toy"].includes(p.behavior))return{col:0,row:3};
-  if(Math.abs(p.body.velocity.x)>8)return{col:Math.floor(t/105)%4,row:1};
-  return{col:Math.floor(t/720)%4,row:0};
+  return{col:0,row:0};
 }
 
-/** Draws the authored sprite family; returns false while assets are unavailable. */
-export function drawCozyCatSprite(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number):boolean{
+function usesMotionLoop(p:PetState,pose:IllustratedCatPose):boolean{
+  if(pose.peeking||pose.pouncing||pose.lying||pose.loaf||pose.sitting||pose.vertical||pose.hanging)return false;
+  return !["investigate","eat","drink","scratch","play_toy","stretch","stalk"].includes(p.behavior);
+}
+
+function motionFrame(p:PetState,t:number,reducedMotion:boolean):SpriteFrame{
+  const speed=Math.abs(p.body.velocity.x),moving=speed>8;
+  if(reducedMotion)return{col:hashPhase(p.id),row:moving?1:0};
+  const interval=moving?(speed>110?82:105):IDLE_INTERVAL_MS;
+  return{col:(Math.floor(t/interval)+hashPhase(p.id))%MOTION_FRAMES,row:moving?1:0};
+}
+
+/** Plays authored, baseline-locked frames without warping the raster artwork. */
+export function drawCozyCatSprite(c:CanvasRenderingContext2D,p:PetState,a:PetAppearance,pose:IllustratedCatPose,t:number,artT=t,reducedMotion=false):boolean{
   requestSheets();
   if(pose.vertical||pose.hanging)return false;
-  const asset=sheets[sheetFor(a)];if(!asset.loaded||!asset.image)return false;
-  const frame=frameFor(p,pose,t),size=DRAW_SIZE;
+  const kind=sheetFor(a),motion=usesMotionLoop(p,pose),asset=motion?motionSheets[kind]:sheets[kind];if(!asset.loaded||!asset.image)return false;
+  const frame=motion?motionFrame(p,t,reducedMotion):frameFor(p,pose,artT),size=DRAW_SIZE;
   c.save();c.imageSmoothingEnabled=false;
   c.drawImage(asset.image,frame.col*FRAME,frame.row*FRAME,FRAME,FRAME,-size*.5,-size,size,size);
   c.restore();return true;
